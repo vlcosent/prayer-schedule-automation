@@ -94,7 +94,7 @@ ELDER_FAMILIES = {
     "Jerry Wood": "Wood, Jerry & Rebecca",
     "Jonathan Loveday": "Loveday, Jonathan & Sylvia; Jabin",
     "Kyle Fairman": "Fairman, Kyle & Leigh Ann; Wyatt, Audrey",
-    "L.A. Fox": "Fox, L.A., Jr. & Cindy",
+    "L.A. Fox": "Fox, L.A. & Cindy",
     "Larry McDuffee": "McDuffee, Larry & Linda"
 }
 
@@ -292,30 +292,25 @@ def create_v10_master_pools():
     FIXED: Removed unnecessary rebalancing code
     """
     families = parse_directory()
-    
+
     # Create 8 pools
     pools = [[] for _ in range(8)]
-    
-    # Target sizes for distribution
-    # Pools 0,1,2: 20 families each
-    # Pools 3-7: 19 families each
-    # Total: 20*3 + 19*5 = 60 + 95 = 155 ✓
-    
+
     # Distribute all families round-robin style
     # This naturally achieves the target sizes!
     for i, family in enumerate(families):
         pool_idx = i % 8
         pools[pool_idx].append(family)
-    
+
     # FIXED: Removed unnecessary rebalancing code
     # The round-robin distribution already achieves:
     # - Pools 0, 1 and 2: 20 families each (155 % 8 = 3, so first 3 pools get extra)
     # - Pools 3-7: 19 families each
-    
+
     # Sort each pool for consistency
     for pool in pools:
         pool.sort()
-    
+
     return pools
 
 # Global storage
@@ -332,29 +327,78 @@ def assign_families_for_week_v10(week_number):
     """
     Get family assignments for a specific week using V10 algorithm.
     This ensures no elder ever gets their own family through filtering.
+    FIXED: Filtered families are redistributed using a deterministic strategy
+    that maximizes separation to avoid week-to-week repeats.
     """
     master_pools = get_master_pools()
-    
+
     # Calculate position in 8-week cycle
     cycle_position = (week_number - 1) % 8
-    
+
+    # First collect filtered families
+    filtered_families_data = []  # [(family, owner_elder, owner_idx)]
+    for elder_idx, elder in enumerate(ELDERS):
+        pool_idx = (elder_idx + cycle_position) % 8
+        elder_own_family = ELDER_FAMILIES.get(elder)
+
+        if elder_own_family in master_pools[pool_idx]:
+            # This elder's family is in their pool, needs reassignment
+            filtered_families_data.append((elder_own_family, elder, elder_idx))
+
     # Get assignments for this week
     assignments = {}
-    
+
+    # First pass: Assign pools and filter out own families
     for elder_idx, elder in enumerate(ELDERS):
         # Calculate which pool this elder gets this week
         pool_idx = (elder_idx + cycle_position) % 8
-        
+
         # Get the pool and filter out elder's own family
         pool_families = master_pools[pool_idx].copy()
         elder_own_family = ELDER_FAMILIES.get(elder)
-        
+
         # Remove elder's own family if it's in the pool
         if elder_own_family in pool_families:
             pool_families.remove(elder_own_family)
-        
+
         assignments[elder] = pool_families
-    
+
+    # Second pass: Redistribute filtered families using FIXED reassignment table
+    # This ensures consistency and prevents week-to-week repeats
+    #
+    # Fixed reassignment mapping based on conflict analysis:
+    # - Cycle week 0 (Week 1): Kyle Fairman's family filtered
+    # - Cycle week 1 (Week 2): Frank Bohannon's and Jerry Wood's families filtered
+    # - Cycle week 2 (Week 3): Brian McLaughlin's and Larry McDuffee's families filtered
+    # - Cycle week 5 (Week 6): Jonathan Loveday's family filtered
+    # - Cycle week 7 (Week 8): Alan Judd's family filtered
+    #
+    # Reassignments chosen to maintain 18-20 family balance and avoid repeats:
+    # Based on analysis: assign to elders with 19 families (to reach 20) or 18 (to reach 19)
+    FIXED_REASSIGNMENT_MAP = {
+        0: {"Kyle Fairman": "Jerry Wood"},           # Kyle(18) filtered → Jerry(19→20)
+        1: {"Frank Bohannon": "Jonathan Loveday",    # Frank(18) → Jonathan(19→20)
+            "Jerry Wood": "Kyle Fairman"},           # Jerry(18) → Kyle(19→20)
+        2: {"Brian McLaughlin": "Jerry Wood",        # Brian(18) → Jerry(19→20) NOT Frank (has it in cycle 1)
+            "Larry McDuffee": "Brian McLaughlin"},   # Larry(19) → Brian(18→19)
+        3: {"L.A. Fox": "Alan Judd"},                # L.A.(19) → Alan(19→20)
+        5: {"Jonathan Loveday": "Brian McLaughlin"}, # Jonathan(19) → Brian(19→20)
+        7: {"Alan Judd": "Jonathan Loveday"}         # Alan(18) → Jonathan(19→20)
+    }
+
+    reassignment_map = FIXED_REASSIGNMENT_MAP.get(cycle_position, {})
+
+    for elder_family, owner_elder, owner_idx in filtered_families_data:
+        # Use the fixed reassignment map
+        best_elder = reassignment_map.get(owner_elder)
+
+        # Fallback if not in map (shouldn't happen with correct map)
+        if not best_elder:
+            best_elder = ELDERS[(owner_idx + 4) % len(ELDERS)]
+
+        # Assign the filtered family to the designated elder
+        assignments[best_elder].append(elder_family)
+
     return assignments
 
 def verify_v10_algorithm():
