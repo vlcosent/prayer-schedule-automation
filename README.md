@@ -10,6 +10,7 @@ Automated weekly prayer schedule generator for Crossville Church of Christ. This
 - **Balanced Distribution**: 18-20 families per elder for complete coverage
 - **Multiple Formats**: Generates both professional HTML and plain text schedules
 - **Dual Environment Support**: Works in both CI/CD (GitHub Actions) and local desktop environments
+- **Automatic Archive**: Previous week's schedule automatically archived with date and week number
 
 ## System Overview
 
@@ -39,6 +40,9 @@ The workflow automatically runs **every Monday at 6:00 AM UTC**:
 2. Checks out repository code
 3. Sets up Python 3.11
 4. Executes prayer schedule generator
+   - Runs algorithm verification (5 checks)
+   - Archives previous week's schedule
+   - Generates new schedule for current week
 5. Commits generated files to repository
 6. Pushes changes to main branch
 7. Uploads artifacts (90-day retention)
@@ -73,6 +77,47 @@ Each run produces three files:
 - Tracks schedule generation events
 - Useful for debugging and audit trail
 
+## Archive System
+
+The system automatically archives previous week's schedules before generating new ones, preserving a complete history.
+
+### How It Works
+1. **Before Generation**: On each run, the system checks for an existing `Prayer_Schedule_Current_Week.txt` file
+2. **Archive Creation**: If found, it moves the file to an `archive/` subdirectory
+3. **Smart Naming**: Archives are named with date and week number: `Prayer_Schedule_YYYY-MM-DD_WeekNN.txt`
+4. **New Generation**: After archiving, generates the fresh schedule for the current week
+
+### Archive Directory Structure
+```
+/repository_root/ (or Desktop in local mode)
+├── Prayer_Schedule_Current_Week.html (current week)
+├── Prayer_Schedule_Current_Week.txt (current week)
+├── prayer_schedule_log.txt
+└── archive/
+    ├── Prayer_Schedule_2025-11-10_Week46.txt
+    ├── Prayer_Schedule_2025-11-03_Week45.txt
+    ├── Prayer_Schedule_2025-10-27_Week44.txt
+    └── ... (historical schedules)
+```
+
+### Archive File Naming
+- **Format**: `Prayer_Schedule_YYYY-MM-DD_WeekNN.txt`
+- **Date**: Monday of the archived week (YYYY-MM-DD)
+- **Week Number**: Extracted from file content (e.g., Week46)
+- **Example**: `Prayer_Schedule_2025-11-10_Week46.txt`
+
+### Benefits
+- **Historical Record**: Complete history of all generated schedules
+- **Audit Trail**: Review past elder assignments
+- **No Data Loss**: Previous schedules preserved automatically
+- **Easy Retrieval**: Chronologically sortable filenames
+- **Automatic Management**: No manual intervention required
+
+### Location
+- **CI/GitHub Actions**: Archives stored in `archive/` in repository root
+- **Desktop Mode**: Archives stored in `~/Desktop/archive/` or Windows Desktop
+- **Auto-Created**: Archive directory is created automatically if it doesn't exist
+
 ## Files in Repository
 
 ### Core Files
@@ -84,6 +129,7 @@ Each run produces three files:
 - **`Prayer_Schedule_Current_Week.html`** - Current week's HTML schedule
 - **`Prayer_Schedule_Current_Week.txt`** - Current week's text schedule
 - **`prayer_schedule_log.txt`** - Generation activity log
+- **`archive/`** - Directory containing historical schedules (auto-created)
 
 ## Local Desktop Usage
 

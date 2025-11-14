@@ -28,6 +28,8 @@ from datetime import datetime, timedelta
 import os
 import sys
 import traceback
+import shutil
+import re
 
 # ============== CONFIGURATION SECTION ==============
 # FIXED: Use expanduser to get desktop path dynamically
@@ -682,6 +684,57 @@ Note: Monday always has two elders assigned for prayer.
     
     return html, text
 
+def archive_previous_schedule():
+    """
+    Archive previous week's txt file before generating new one.
+    Moves the file to an 'archive' subdirectory with date and week number.
+    """
+    current_txt = os.path.join(DESKTOP_DIR, "Prayer_Schedule_Current_Week.txt")
+
+    if os.path.exists(current_txt):
+        try:
+            # Create archive directory if it doesn't exist
+            archive_dir = os.path.join(DESKTOP_DIR, "archive")
+            os.makedirs(archive_dir, exist_ok=True)
+
+            # Use current timestamp for archive filename
+            timestamp = datetime.now().strftime('%Y-%m-%d')
+
+            # Try to extract week number from the existing file
+            week_num = None
+            try:
+                with open(current_txt, 'r', encoding='utf-8') as f:
+                    content = f.read(300)  # Read first 300 chars
+                    # Look for "WEEK XX" pattern
+                    match = re.search(r'WEEK (\d+)', content, re.IGNORECASE)
+                    if match:
+                        week_num = match.group(1)
+            except Exception as e:
+                print(f"   [INFO] Could not extract week number from file: {e}")
+
+            # Build archive filename
+            if week_num:
+                archive_name = f"Prayer_Schedule_{timestamp}_Week{week_num}.txt"
+            else:
+                archive_name = f"Prayer_Schedule_{timestamp}.txt"
+
+            archive_path = os.path.join(archive_dir, archive_name)
+
+            # Move file to archive (use copy + remove for better error handling)
+            shutil.copy2(current_txt, archive_path)
+            os.remove(current_txt)
+
+            print(f"   [ARCHIVED] Previous schedule moved to: archive/{archive_name}")
+            return True
+
+        except Exception as e:
+            print(f"   [WARNING] Could not archive previous schedule: {e}")
+            print(f"   [INFO] Continuing with schedule generation...")
+            return False
+    else:
+        print(f"   [INFO] No previous schedule to archive (first run or file doesn't exist)")
+        return False
+
 def update_desktop_files(html_content, text_content):
     """Update files on the desktop with ERROR HANDLING"""
     success = True
@@ -805,7 +858,11 @@ def main():
         
         print(f"\nTotal elder assignments this week: {total_assignments}")
         # Note: Monday has 2 elders, so we have 8 elders but 9 prayer slots
-        
+
+        # Archive previous week's schedule before generating new one
+        print("\nArchiving previous schedule...")
+        archive_previous_schedule()
+
         # Generate content
         html_content, text_content = generate_schedule_content(week_num, monday, elder_assignments)
         
