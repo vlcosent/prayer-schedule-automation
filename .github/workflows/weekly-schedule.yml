@@ -1,0 +1,46 @@
+name: Weekly Prayer Schedule Generation
+
+on:
+  schedule:
+    # Run every Monday at 6:00 AM UTC (1:00 AM EST / 2:00 AM EDT)
+    - cron: '0 6 * * 1'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  generate-schedule:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write  # Required to push changes back to repo
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Run prayer schedule generator
+      run: |
+        python prayer_schedule_V10_DESKTOP_FIXED.py
+        
+    - name: Commit and push generated files
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "GitHub Actions Bot"
+        git add -A
+        git diff --staged --quiet || git commit -m "Auto-generate prayer schedule for week $(date +%Y-%m-%d)"
+        git push || echo "No changes to push"
+        
+    - name: Upload schedule artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: prayer-schedule-${{ github.run_number }}
+        path: |
+          Prayer_Schedule_Current_Week.html
+          Prayer_Schedule_Current_Week.txt
+          prayer_schedule_log.txt
+        retention-days: 90
+        if-no-files-found: warn
