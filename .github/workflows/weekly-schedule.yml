@@ -23,6 +23,11 @@ jobs:
         python-version: '3.11'
         
     - name: Run prayer schedule generator
+      env:
+        EMAIL_ENABLED: 'true'
+        SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+        SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
+        RECIPIENT_EMAILS: ${{ secrets.RECIPIENT_EMAILS }}
       run: |
         python prayer_schedule_V10_DESKTOP_FIXED.py
         
