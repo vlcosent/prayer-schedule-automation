@@ -31,11 +31,25 @@ import traceback
 
 # ============== CONFIGURATION SECTION ==============
 # FIXED: Use expanduser to get desktop path dynamically
+# AUTO-DETECT: Works in both desktop and CI (GitHub Actions) environments
 try:
-    DESKTOP_DIR = os.path.expanduser("~/Desktop")
-    if not os.path.exists(DESKTOP_DIR):
-        # Fallback for Windows if Desktop doesn't exist at standard location
-        DESKTOP_DIR = os.path.join(os.environ.get('USERPROFILE', ''), 'Desktop')
+    # Check if running in GitHub Actions or CI environment
+    is_ci = os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 'true'
+
+    if is_ci:
+        # In CI environment, use current directory
+        DESKTOP_DIR = os.getcwd()
+        print(f"CI environment detected. Using current directory: {DESKTOP_DIR}")
+    else:
+        # In desktop environment, use Desktop folder
+        DESKTOP_DIR = os.path.expanduser("~/Desktop")
+        if not os.path.exists(DESKTOP_DIR):
+            # Fallback for Windows if Desktop doesn't exist at standard location
+            DESKTOP_DIR = os.path.join(os.environ.get('USERPROFILE', ''), 'Desktop')
+            if not os.path.exists(DESKTOP_DIR):
+                # If still no desktop found, use current directory
+                DESKTOP_DIR = os.getcwd()
+                print(f"Warning: Could not find desktop, using current directory: {DESKTOP_DIR}")
 except:
     # Ultimate fallback
     DESKTOP_DIR = os.getcwd()
