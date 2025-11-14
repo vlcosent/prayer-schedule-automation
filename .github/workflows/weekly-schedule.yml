@@ -2,8 +2,8 @@ name: Weekly Prayer Schedule Generation
 
 on:
   schedule:
-    # Run every Monday at 6:00 AM UTC (1:00 AM EST / 2:00 AM EDT)
-    - cron: '0 6 * * 1'
+    # Run every Monday at 1:00 PM UTC (8:00 AM CDT / 7:00 AM CST)
+    - cron: '0 13 * * 1'
   workflow_dispatch:  # Allow manual trigger
 
 jobs:

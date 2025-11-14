@@ -4,7 +4,7 @@ Automated weekly prayer schedule generator for Crossville Church of Christ. This
 
 ## Features
 
-- **Automatic Weekly Generation**: Runs every Monday at 6:00 AM UTC (1:00 AM EST / 2:00 AM EDT)
+- **Automatic Weekly Generation**: Runs every Monday at 1:00 PM UTC (8:00 AM CDT / 7:00 AM CST)
 - **Email Delivery**: Automatically emails schedule to configured recipients
 - **Perfect Rotation**: 100% new families every week - no repeats until the 8-week cycle completes
 - **Smart Assignments**: No elder ever prays for their own family
@@ -33,12 +33,12 @@ The system performs 5 verification checks on every run:
 ## Automatic Execution (GitHub Actions)
 
 ### Schedule
-The workflow automatically runs **every Monday at 6:00 AM UTC**:
-- **EST**: 1:00 AM Monday
-- **EDT**: 2:00 AM Monday
+The workflow automatically runs **every Monday at 1:00 PM UTC**:
+- **CST**: 7:00 AM Monday
+- **CDT**: 8:00 AM Monday
 
 ### Workflow Process
-1. GitHub Actions triggers on schedule: `cron: '0 6 * * 1'`
+1. GitHub Actions triggers on schedule: `cron: '0 13 * * 1'`
 2. Checks out repository code
 3. Sets up Python 3.11
 4. Executes prayer schedule generator
@@ -291,7 +291,7 @@ Location: `.github/workflows/weekly-schedule.yml`
 ```yaml
 on:
   schedule:
-    - cron: '0 6 * * 1'  # Every Monday at 6:00 AM UTC
+    - cron: '0 13 * * 1'  # Every Monday at 1:00 PM UTC (8 AM CDT / 7 AM CST)
   workflow_dispatch:      # Allow manual trigger
 ```
 
@@ -432,5 +432,5 @@ To change when the workflow runs, edit the cron expression in `.github/workflows
 ---
 
 **Status**: ✅ Fully Operational
-**Next Scheduled Run**: Every Monday at 6:00 AM UTC
+**Next Scheduled Run**: Every Monday at 1:00 PM UTC (8:00 AM CDT / 7:00 AM CST)
 **Confidence Level**: 100%
