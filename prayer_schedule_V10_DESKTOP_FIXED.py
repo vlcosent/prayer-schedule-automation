@@ -6,12 +6,13 @@ FIXED VERSION - Addresses all critical bugs found in analysis
 
 Features:
 - 100% new families every week GUARANTEED
-- No elder ever prays for their own family  
-- No email functionality (no authentication issues)
+- No elder ever prays for their own family
+- Email delivery of weekly schedules (secure Gmail integration)
 - ASCII only output (no Unicode errors)
 - Perfect 8-week rotation cycle
 - Flexible family counts (18-20 per elder) to ensure perfect rotation
-- ALL FILES SAVED TO DESKTOP
+- Automatic archiving of previous schedules
+- ALL FILES SAVED TO DESKTOP (or current directory in CI)
 
 FIXES APPLIED:
 1. Fixed hard-coded user path - now uses expanduser
@@ -20,6 +21,8 @@ FIXES APPLIED:
 4. Removed unnecessary rebalancing code
 5. Fixed weekly assignment count
 6. Added better ISO week handling
+7. Added secure email delivery functionality
+8. Added automatic schedule archiving
 """
 
 import csv
@@ -28,20 +31,48 @@ from datetime import datetime, timedelta
 import os
 import sys
 import traceback
+import shutil
+import re
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # ============== CONFIGURATION SECTION ==============
 # FIXED: Use expanduser to get desktop path dynamically
+# AUTO-DETECT: Works in both desktop and CI (GitHub Actions) environments
 try:
-    DESKTOP_DIR = os.path.expanduser("~/Desktop")
-    if not os.path.exists(DESKTOP_DIR):
-        # Fallback for Windows if Desktop doesn't exist at standard location
-        DESKTOP_DIR = os.path.join(os.environ.get('USERPROFILE', ''), 'Desktop')
+    # Check if running in GitHub Actions or CI environment
+    is_ci = os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 'true'
+
+    if is_ci:
+        # In CI environment, use current directory
+        DESKTOP_DIR = os.getcwd()
+        print(f"CI environment detected. Using current directory: {DESKTOP_DIR}")
+    else:
+        # In desktop environment, use Desktop folder
+        DESKTOP_DIR = os.path.expanduser("~/Desktop")
+        if not os.path.exists(DESKTOP_DIR):
+            # Fallback for Windows if Desktop doesn't exist at standard location
+            DESKTOP_DIR = os.path.join(os.environ.get('USERPROFILE', ''), 'Desktop')
+            if not os.path.exists(DESKTOP_DIR):
+                # If still no desktop found, use current directory
+                DESKTOP_DIR = os.getcwd()
+                print(f"Warning: Could not find desktop, using current directory: {DESKTOP_DIR}")
 except:
     # Ultimate fallback
     DESKTOP_DIR = os.getcwd()
     print(f"Warning: Could not find desktop, using current directory: {DESKTOP_DIR}")
 
 BASE_DIR = DESKTOP_DIR
+
+# ============== EMAIL CONFIGURATION ==============
+# Email settings - credentials loaded from environment variables
+EMAIL_ENABLED = os.environ.get('EMAIL_ENABLED', 'false').lower() == 'true'
+SMTP_SERVER = 'smtp.gmail.com'
+SMTP_PORT = 587
+SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'churchprayerlistelders@gmail.com')
+SENDER_PASSWORD = os.environ.get('SENDER_PASSWORD', '')
+RECIPIENT_EMAILS = os.environ.get('RECIPIENT_EMAILS', 'elders@crossvillechurchofchrist.org,carolsparks.cs@gmail.com')
 
 # Church Elders (8 total)
 ELDERS = [
@@ -668,6 +699,133 @@ Note: Monday always has two elders assigned for prayer.
     
     return html, text
 
+def archive_previous_schedule():
+    """
+    Archive previous week's txt file before generating new one.
+    Moves the file to an 'archive' subdirectory with date and week number.
+    """
+    current_txt = os.path.join(DESKTOP_DIR, "Prayer_Schedule_Current_Week.txt")
+
+    if os.path.exists(current_txt):
+        try:
+            # Create archive directory if it doesn't exist
+            archive_dir = os.path.join(DESKTOP_DIR, "archive")
+            os.makedirs(archive_dir, exist_ok=True)
+
+            # Use current timestamp for archive filename
+            timestamp = datetime.now().strftime('%Y-%m-%d')
+
+            # Try to extract week number from the existing file
+            week_num = None
+            try:
+                with open(current_txt, 'r', encoding='utf-8') as f:
+                    content = f.read(300)  # Read first 300 chars
+                    # Look for "WEEK XX" pattern
+                    match = re.search(r'WEEK (\d+)', content, re.IGNORECASE)
+                    if match:
+                        week_num = match.group(1)
+            except Exception as e:
+                print(f"   [INFO] Could not extract week number from file: {e}")
+
+            # Build archive filename
+            if week_num:
+                archive_name = f"Prayer_Schedule_{timestamp}_Week{week_num}.txt"
+            else:
+                archive_name = f"Prayer_Schedule_{timestamp}.txt"
+
+            archive_path = os.path.join(archive_dir, archive_name)
+
+            # Move file to archive (use copy + remove for better error handling)
+            shutil.copy2(current_txt, archive_path)
+            os.remove(current_txt)
+
+            print(f"   [ARCHIVED] Previous schedule moved to: archive/{archive_name}")
+            return True
+
+        except Exception as e:
+            print(f"   [WARNING] Could not archive previous schedule: {e}")
+            print(f"   [INFO] Continuing with schedule generation...")
+            return False
+    else:
+        print(f"   [INFO] No previous schedule to archive (first run or file doesn't exist)")
+        return False
+
+def send_email_schedule(week_num, monday, text_content):
+    """
+    Send the prayer schedule via email.
+    Uses Gmail SMTP with credentials from environment variables.
+    """
+    if not EMAIL_ENABLED:
+        print("   [INFO] Email is disabled (EMAIL_ENABLED not set to 'true')")
+        return False
+
+    if not SENDER_PASSWORD:
+        print("   [WARNING] Email password not configured (SENDER_PASSWORD not set)")
+        print("   [INFO] Skipping email delivery")
+        return False
+
+    try:
+        # Parse recipient emails
+        recipients = [email.strip() for email in RECIPIENT_EMAILS.split(',') if email.strip()]
+
+        if not recipients:
+            print("   [WARNING] No recipient emails configured")
+            return False
+
+        # Calculate date range
+        end_date = monday + timedelta(days=6)
+        date_range = f"{monday.strftime('%b %d')}-{end_date.strftime('%d, %Y')}"
+
+        # Create email message
+        msg = MIMEMultipart()
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = ', '.join(recipients)
+        msg['Subject'] = f"Weekly Prayer Schedule - Week {week_num} ({date_range})"
+
+        # Email body - include the full text schedule
+        email_body = f"""Greetings,
+
+Please find below the prayer schedule for Week {week_num} ({date_range}).
+
+{text_content}
+
+This schedule was automatically generated by the Prayer Schedule System.
+
+Blessings,
+Crossville Church of Christ Elder Ministry
+"""
+
+        msg.attach(MIMEText(email_body, 'plain'))
+
+        # Connect to Gmail SMTP server
+        print(f"   [EMAIL] Connecting to {SMTP_SERVER}:{SMTP_PORT}...")
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()  # Secure the connection
+
+        # Login
+        print(f"   [EMAIL] Logging in as {SENDER_EMAIL}...")
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+
+        # Send email
+        print(f"   [EMAIL] Sending to: {', '.join(recipients)}")
+        server.send_message(msg)
+        server.quit()
+
+        print(f"   [✓] Email sent successfully to {len(recipients)} recipient(s)")
+        return True
+
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"   [ERROR] Email authentication failed: {e}")
+        print(f"   [INFO] Please verify SENDER_PASSWORD is a valid Gmail App Password")
+        return False
+    except smtplib.SMTPException as e:
+        print(f"   [ERROR] SMTP error occurred: {e}")
+        return False
+    except Exception as e:
+        print(f"   [ERROR] Failed to send email: {e}")
+        traceback.print_exc()
+        return False
+
 def update_desktop_files(html_content, text_content):
     """Update files on the desktop with ERROR HANDLING"""
     success = True
@@ -791,7 +949,11 @@ def main():
         
         print(f"\nTotal elder assignments this week: {total_assignments}")
         # Note: Monday has 2 elders, so we have 8 elders but 9 prayer slots
-        
+
+        # Archive previous week's schedule before generating new one
+        print("\nArchiving previous schedule...")
+        archive_previous_schedule()
+
         # Generate content
         html_content, text_content = generate_schedule_content(week_num, monday, elder_assignments)
         
@@ -800,9 +962,13 @@ def main():
         if not update_desktop_files(html_content, text_content):
             print("\n[WARNING] Some files could not be updated")
             return False
-        
+
+        # Send email with the schedule
+        print("\nSending email...")
+        send_email_schedule(week_num, monday, text_content)
+
         log_activity(f"Generated Week {week_num} schedule successfully")
-        
+
         print("\n[OK] Schedule generation complete!")
         print(f"All files have been saved to: {DESKTOP_DIR}")
         

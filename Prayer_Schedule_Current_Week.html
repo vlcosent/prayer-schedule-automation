@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Prayer Schedule - Week 46</title>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="3600">
+    <style>
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header { 
+            background: #2c3e50;
+            color: white; 
+            padding: 30px; 
+            text-align: center; 
+        }
+        .header h1 { margin: 0 0 10px 0; font-size: 2.5em; }
+        .header h2 { margin: 0 0 10px 0; font-size: 1.8em; }
+        .header h3 { margin: 0; font-size: 1.2em; opacity: 0.9; }
+        .content { padding: 30px; }
+        .schedule-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 30px 0; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .schedule-table th, .schedule-table td { 
+            border: 1px solid #ddd; 
+            padding: 15px; 
+            text-align: left; 
+        }
+        .schedule-table th { 
+            background: #3498db;
+            color: white; 
+            font-size: 1.1em;
+        }
+        .schedule-table tr:nth-child(even) { background-color: #f8f9fa; }
+        .schedule-table tr:hover { background-color: #e8f4f8; }
+        .highlight { background-color: #fff3cd !important; font-weight: bold; }
+        .prayer-list { 
+            margin: 40px 0; 
+            page-break-inside: avoid;
+            border-left: 4px solid #3498db;
+            padding-left: 20px;
+        }
+        .prayer-list h3 { 
+            color: #2c3e50; 
+            border-bottom: 2px solid #3498db; 
+            padding-bottom: 10px;
+            font-size: 1.3em;
+        }
+        .family-list { 
+            columns: 2; 
+            column-gap: 40px;
+            list-style-type: none;
+            padding: 0;
+        }
+        .family-list li { 
+            margin: 8px 0;
+            padding: 5px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .family-list li:hover { 
+            background-color: #e8f4f8;
+        }
+        .family-list li:before {
+            content: "\2022";  /* FIXED: Using proper CSS escape for bullet */
+            color: #3498db;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .update-time {
+            text-align: center;
+            color: #7f8c8d;
+            margin-top: 20px;
+            font-style: italic;
+        }
+        .note {
+            background-color: #e8f4fd;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        @media print {
+            body { background: white; }
+            .container { box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Crossville Church of Christ</h1>
+            <h2>Elder Prayer Schedule - Week 46</h2>
+            <h3>November 10 - November 16, 2025</h3>
+        </div>
+        
+        <div class="content">
+            <div class="note">
+                <strong>Note:</strong> Each elder has 18-20 families to ensure complete rotation coverage.
+                Monday always has two elders assigned for prayer.
+            </div>
+            
+            <h2>This Week's Prayer Schedule</h2>
+            <table class="schedule-table">
+                <tr>
+                    <th>Day</th>
+                    <th>Date</th>
+                    <th>Elder(s) Assigned</th>
+                </tr>
+    
+                <tr class="highlight">
+                    <td><strong>Monday</strong></td>
+                    <td>November 10</td>
+                    <td>Alan Judd & Brian McLaughlin</td>
+                </tr>
+        
+                <tr class="">
+                    <td><strong>Tuesday</strong></td>
+                    <td>November 11</td>
+                    <td>Frank Bohannon</td>
+                </tr>
+        
+                <tr class="">
+                    <td><strong>Wednesday</strong></td>
+                    <td>November 12</td>
+                    <td>Jerry Wood</td>
+                </tr>
+        
+                <tr class="">
+                    <td><strong>Thursday</strong></td>
+                    <td>November 13</td>
+                    <td>Jonathan Loveday</td>
+                </tr>
+        
+                <tr class="">
+                    <td><strong>Friday</strong></td>
+                    <td>November 14</td>
+                    <td>Kyle Fairman</td>
+                </tr>
+        
+                <tr class="">
+                    <td><strong>Saturday</strong></td>
+                    <td>November 15</td>
+                    <td>L.A. Fox</td>
+                </tr>
+        
+                <tr class="">
+                    <td><strong>Sunday</strong></td>
+                    <td>November 16</td>
+                    <td>Larry McDuffee</td>
+                </tr>
+        
+            </table>
+            
+            <h2>Prayer Lists for This Week</h2>
+    
+            <div class="prayer-list">
+                <h3>Alan Judd - Monday, November 10</h3>
+                <p><em>19 families to pray for:</em></p>
+                <ul class="family-list">
+                        <li>Beach, Bruce</li>
+            <li>Brady, Donald &amp; Donna</li>
+            <li>Brown, Kim</li>
+            <li>Comer, Gail</li>
+            <li>Fairman, Kyle &amp; Leigh Ann; Wyatt, Audrey</li>
+            <li>Griffies, David &amp; Mary</li>
+            <li>Hassler, Steve &amp; Barbara</li>
+            <li>Houston, Ruby</li>
+            <li>Jackson, Robert &amp; Tracy</li>
+            <li>Law, Stephen Charles</li>
+            <li>Martin, Jaton</li>
+            <li>Mitchell, Jeanette</li>
+            <li>Parsons, Charles</li>
+            <li>Reed, Ima Jeanne</li>
+            <li>Rothery, Ginny</li>
+            <li>Smith, Hazel</li>
+            <li>Swafford, Russell &amp; Christiana; Jeremiah, Lilly, Tempest</li>
+            <li>Webb, Richard &amp; Sylvia</li>
+            <li>Wootton, Rebecca</li>
+            </ul>
+            </div>
+            
+            <div class="prayer-list">
+                <h3>Brian McLaughlin - Monday, November 10</h3>
+                <p><em>19 families to pray for:</em></p>
+                <ul class="family-list">
+                        <li>Beaty, Ethel</li>
+            <li>Brewer, Sandra</li>
+            <li>Brown, Wilma</li>
+            <li>Cosentini, Victor &amp; Paige; Cooper</li>
+            <li>Folk, Roberta</li>
+            <li>Griffin, Donna &amp; Wendell</li>
+            <li>Haymon, Vernon</li>
+            <li>Hudson, Brett</li>
+            <li>Jenkins, Phil &amp; Miriam</li>
+            <li>Lipe, David &amp; Linda</li>
+            <li>Maxwell, Sue</li>
+            <li>Mize, Aileen</li>
+            <li>Pernell, Jerry &amp; Tammi</li>
+            <li>Reed, Nathan &amp; Sara; Ridley, Beau, Tate</li>
+            <li>Savage, Brandon &amp; Jenny; Clara, Charlotte</li>
+            <li>Smith, Joe Lee</li>
+            <li>Thomas, Elon &amp; Betty</li>
+            <li>Wells, Martha</li>
+            <li>Wyatt, Jason &amp; Rachel; Mason</li>
+            </ul>
+            </div>
+            
+            <div class="prayer-list">
+                <h3>Frank Bohannon - Tuesday, November 11</h3>
+                <p><em>19 families to pray for:</em></p>
+                <ul class="family-list">
+                        <li>Beaty, Gene &amp; Norma</li>
+            <li>Brock, Lilly</li>
+            <li>Burchenal, Robert</li>
+            <li>Crabtree, Tommy &amp; Cathy</li>
+            <li>Fowler, Rick &amp; Sue</li>
+            <li>Griffin, Dylan &amp; Julia; Eli, Noah, Isaiah</li>
+            <li>Haynes, Cameron &amp; Evette</li>
+            <li>Hughes, Dona</li>
+            <li>Judd, Alan &amp; Amy; Anderson, Adrian, Adam</li>
+            <li>Loveday, Coye</li>
+            <li>Maynard, Betty</li>
+            <li>Mize, Al &amp; Elaine</li>
+            <li>Pierce, Chris &amp; Alex</li>
+            <li>Rives, Marla</li>
+            <li>Saylors, John &amp; Linda</li>
+            <li>Smith, Roger &amp; Dianna</li>
+            <li>Thompson, Christopher &amp; Brittany; Nautica</li>
+            <li>White, Doris</li>
+            <li>Wyatt, Sarah</li>
+            </ul>
+            </div>
+            
+            <div class="prayer-list">
+                <h3>Jerry Wood - Wednesday, November 12</h3>
+                <p><em>20 families to pray for:</em></p>
+                <ul class="family-list">
+                        <li>Allred, Patric &amp; Courtney; Brady Hoyt, Allie Grace</li>
+            <li>Bell, Jim &amp; Beth</li>
+            <li>Brock, Philip &amp; Brooke; Olliver (Ollie)</li>
+            <li>Burnette, Howard &amp; Kathy</li>
+            <li>Davis, Gail</li>
+            <li>Fox, Jean</li>
+            <li>Gugler, Ethel</li>
+            <li>Hedgecoth, Myra</li>
+            <li>Hunt, Jeff &amp; Sonia</li>
+            <li>Keck, Jim &amp; Andrea; Conner, Emily</li>
+            <li>Loveday, Doug &amp; Wendy; Amy</li>
+            <li>McCormick, Michael &amp; Ginger</li>
+            <li>Napier, Natalie</li>
+            <li>Potter, Rhonda &amp; David</li>
+            <li>Roberts, Jackson &amp; Kayla; Jensen</li>
+            <li>Sears, Jake &amp; Baylee; Summit, Jett</li>
+            <li>Smith, Scott &amp; Juanita</li>
+            <li>Trotter, Linda</li>
+            <li>Whittenburg, Dan &amp; Johnnie</li>
+            <li>Wyatt, Stephanie; Sue Ann</li>
+            </ul>
+            </div>
+            
+            <div class="prayer-list">
+                <h3>Jonathan Loveday - Thursday, November 13</h3>
+                <p><em>19 families to pray for:</em></p>
+                <ul class="family-list">
+                        <li>Austin, Shawn</li>
+            <li>Benedict, Larry &amp; Peggy</li>
+            <li>Brown, Connie</li>
+            <li>Bush, John &amp; Sunshine; Serena, Sydney</li>
+            <li>Davis, J.C. &amp; Lana</li>
+            <li>Fox, L.A. &amp; Cindy</li>
+            <li>Haga, David &amp; Patty</li>
+            <li>Hennessee, Dale &amp; Charlotte; Kadrienne, Kambry</li>
+            <li>Hunt, Wendell &amp; Betty</li>
+            <li>Kerley, Marvin &amp; Rachel</li>
+            <li>McDuffee, Larry &amp; Linda</li>
+            <li>O'Dell, Betty &amp; Bill</li>
+            <li>Randolph, Clyde &amp; Betty</li>
+            <li>Roberts, Jared &amp; Shavonna; Dylan, Lola, Evan</li>
+            <li>Seiber, Seth &amp; Madison; Kayson, Kendall</li>
+            <li>Sparks, Carol</li>
+            <li>Vaden, David &amp; Sheila</li>
+            <li>Wiese, Allena (A- lynn-a)</li>
+            <li>Young, Donna &amp; David</li>
+            </ul>
+            </div>
+            
+            <div class="prayer-list">
+                <h3>Kyle Fairman - Friday, November 14</h3>
+                <p><em>20 families to pray for:</em></p>
+                <ul class="family-list">
+                        <li>Badger, Marvin &amp; Kathy</li>
+            <li>Blyly, Garrett &amp; Taylor; Ellison, Bellamy</li>
+            <li>Brown, Earl</li>
+            <li>Cairns, Rod &amp; Starla</li>
+            <li>Delmonte, Steve &amp; Jenny</li>
+            <li>Fox, Richard</li>
+            <li>Hall, Robin</li>
+            <li>Hollars, Kathy</li>
+            <li>Isaacson, Michael &amp; Terry</li>
+            <li>Kimbro, Sue</li>
+            <li>Madden, Cassey</li>
+            <li>McGhee, Jason &amp; Sara</li>
+            <li>O'Guin, Linda</li>
+            <li>Rector, Mary</li>
+            <li>Roberts, Mark &amp; Lynn</li>
+            <li>Selby, Brian; Gavin</li>
+            <li>Sparks, Jerry &amp; Judy</li>
+            <li>Vaughn, Dennis &amp; Diane</li>
+            <li>Wilson, Ray</li>
+            <li>Young, Mickey &amp; Pat</li>
+            </ul>
+            </div>
+            
+            <div class="prayer-list">
+                <h3>L.A. Fox - Saturday, November 15</h3>
+                <p><em>19 families to pray for:</em></p>
+                <ul class="family-list">
+                        <li>Baisley, Teresa</li>
+            <li>Bohannon, Frank &amp; Paula</li>
+            <li>Brown, Eddie</li>
+            <li>Clark, Sandra; Silas, Sydney</li>
+            <li>Dodson, Bendell</li>
+            <li>Fulford, Sharon</li>
+            <li>Harris, Jimmy &amp; Donna</li>
+            <li>Hoover, Buddy &amp; Jane</li>
+            <li>Iverson, Don &amp; Cathy</li>
+            <li>Lane, Patsy</li>
+            <li>Marshall, Brenda</li>
+            <li>McLaughlin, Brian &amp; Heather</li>
+            <li>Parham, Johnny &amp; Charity; Eli</li>
+            <li>Rector, Troy; Kadence</li>
+            <li>Roberts, Matt &amp; Jody; Tony, Ethan, Sheridan</li>
+            <li>Simmons, Bruce &amp; Louise</li>
+            <li>Stevens, Kyle &amp; Laura Li</li>
+            <li>Walker, Barbara</li>
+            <li>Wood, Chase &amp; Abby; Lakelyn, Landry</li>
+            </ul>
+            </div>
+            
+            <div class="prayer-list">
+                <h3>Larry McDuffee - Sunday, November 16</h3>
+                <p><em>19 families to pray for:</em></p>
+                <ul class="family-list">
+                        <li>Barnwell, Michele; Taylor</li>
+            <li>Bow, Katherine</li>
+            <li>Brown, Harold &amp; Arlene</li>
+            <li>Cole, Aprel</li>
+            <li>Evans, Janie</li>
+            <li>Graham, Pat</li>
+            <li>Hassler, Rebecca</li>
+            <li>Houston, Jeanene &amp; Steve; Stevie</li>
+            <li>Jackson, Gene &amp; Thelda</li>
+            <li>Lau, Gary &amp; Hannah; David, Maren, Major</li>
+            <li>Martin, David &amp; Elissa; Reid, Landyn, Avery</li>
+            <li>Meadows, Ted &amp; Elaine</li>
+            <li>Parham, Tom &amp; Jill; Brantley</li>
+            <li>Redwine, Chris &amp; Dana</li>
+            <li>Rose, Lisa</li>
+            <li>Slate, Ray &amp; Martha</li>
+            <li>Stover, Lewis &amp; Judy</li>
+            <li>Warner, Jean</li>
+            <li>Wood, Jerry &amp; Rebecca</li>
+            </ul>
+            </div>
+            
+            <div class="update-time">
+                Last updated: November 14, 2025 at 05:23 PM
+                <br>Next update: Next Monday at 6:00 AM
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+    
