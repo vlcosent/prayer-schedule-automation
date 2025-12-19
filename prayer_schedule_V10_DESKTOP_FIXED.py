@@ -72,7 +72,18 @@ SMTP_SERVER = 'smtp.gmail.com'
 SMTP_PORT = 587
 SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'churchprayerlistelders@gmail.com')
 SENDER_PASSWORD = os.environ.get('SENDER_PASSWORD', '')
-RECIPIENT_EMAILS = os.environ.get('RECIPIENT_EMAILS', 'elders@crossvillechurchofchrist.org,carolsparks.cs@gmail.com')
+RECIPIENT_EMAILS = os.environ.get('RECIPIENT_EMAILS', ','.join([
+    'elders@crossvillechurchofchrist.org',
+    'carolsparks.cs@gmail.com',
+    'frankbo72@gmail.com',           # Frank
+    'kfair232@gmail.com',            # Kyle
+    'laccafox@gmail.com',            # L.A., Jr.
+    'alanhjudd@gmail.com',           # Alan
+    'lovedayj@frontiernet.net',      # Jonathan
+    'larrymcduffee@gmail.com',       # Larry
+    'brianmclaughlin423@gmail.com',  # Brian
+    'jbw@benlomand.net',             # Jerry
+]))
 
 # Church Elders (8 total)
 ELDERS = [
