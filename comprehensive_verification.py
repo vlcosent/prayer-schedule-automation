@@ -11,13 +11,15 @@ This script performs deep verification to ensure:
 
 import csv
 from io import StringIO
+from datetime import datetime, timedelta
 
 # Import configuration from main script
 import sys
 sys.path.insert(0, '/home/user/prayer-schedule-automation')
 from prayer_schedule_V10_DESKTOP_FIXED import (
     ELDERS, ELDER_FAMILIES, parse_directory,
-    assign_families_for_week_v10, get_master_pools
+    assign_families_for_week_v10, get_master_pools,
+    calculate_continuous_week, REFERENCE_MONDAY
 )
 
 def verify_complete_coverage():
@@ -229,9 +231,102 @@ def verify_complete_coverage():
         print("\nCRITICAL ISSUES DETECTED - See details above")
         return False
 
+def verify_year_boundary():
+    """
+    CRITICAL VERIFICATION: Ensure the 8-week rotation cycle is continuous
+    across year boundaries, where ISO week numbers reset from 52/53 to 1.
+
+    This test uses calculate_continuous_week() to simulate multiple year
+    transitions and verifies:
+    1. Cycle positions advance by exactly 1 each week (no skips)
+    2. No duplicate assignments between consecutive weeks
+    3. The 8-week cycle completes correctly across year boundaries
+    """
+    print(f"\n\n{'='*80}")
+    print("YEAR-BOUNDARY CONTINUITY VERIFICATION")
+    print('='*80)
+
+    all_passed = True
+
+    # Test multiple year boundaries
+    year_boundaries = [
+        ("2025->2026", datetime(2025, 12, 1)),   # Start 4 weeks before boundary
+        ("2026->2027", datetime(2026, 12, 7)),   # 2026 has 53 ISO weeks
+        ("2027->2028", datetime(2027, 12, 6)),
+        ("2028->2029", datetime(2028, 12, 11)),  # 2028 is a leap year
+    ]
+
+    for label, start_monday in year_boundaries:
+        print(f"\n--- Testing {label} boundary ---")
+
+        # Generate 12 consecutive weeks of assignments
+        prev_cycle_pos = None
+        prev_assignments = None
+
+        boundary_ok = True
+        for week_offset in range(12):
+            monday = start_monday + timedelta(weeks=week_offset)
+            continuous_week = calculate_continuous_week(monday)
+            iso_year, iso_week, _ = monday.isocalendar()
+            cycle_pos = (continuous_week - 1) % 8
+
+            # Check cycle position advances by exactly 1
+            if prev_cycle_pos is not None:
+                expected = (prev_cycle_pos + 1) % 8
+                if cycle_pos != expected:
+                    print(f"   FAIL: {monday.strftime('%Y-%m-%d')} ISO W{iso_week}: "
+                          f"cycle_pos={cycle_pos}, expected={expected} (discontinuity!)")
+                    boundary_ok = False
+                    all_passed = False
+
+            # Check no family overlap between consecutive weeks
+            assignments = assign_families_for_week_v10(continuous_week)
+            if prev_assignments is not None:
+                for elder in ELDERS:
+                    prev_fams = set(prev_assignments[elder])
+                    curr_fams = set(assignments[elder])
+                    overlap = prev_fams & curr_fams
+                    if overlap:
+                        print(f"   FAIL: {elder} has {len(overlap)} overlapping families "
+                              f"between weeks at {monday.strftime('%Y-%m-%d')}")
+                        boundary_ok = False
+                        all_passed = False
+
+            prev_cycle_pos = cycle_pos
+            prev_assignments = assignments
+
+        if boundary_ok:
+            print(f"   PASS: {label} - continuous rotation, no duplicates")
+
+    # Verify continuous week matches ISO week within 2026
+    print(f"\n--- Verifying continuous_week == ISO week within 2026 ---")
+    alignment_ok = True
+    monday = datetime(2025, 12, 29)  # ISO Week 1 of 2026
+    for w in range(53):
+        d = monday + timedelta(weeks=w)
+        iso_year, iso_week, _ = d.isocalendar()
+        cw = calculate_continuous_week(d)
+        if iso_year == 2026 and cw != iso_week:
+            print(f"   FAIL: {d.strftime('%Y-%m-%d')} ISO W{iso_week} != continuous W{cw}")
+            alignment_ok = False
+            all_passed = False
+    if alignment_ok:
+        print(f"   PASS: All 2026 weeks: continuous_week == ISO week")
+
+    print(f"\n{'='*80}")
+    if all_passed:
+        print("YEAR-BOUNDARY VERIFICATION: ALL PASSED")
+    else:
+        print("YEAR-BOUNDARY VERIFICATION: FAILED")
+    print('='*80)
+
+    return all_passed
+
+
 if __name__ == "__main__":
     import os
     os.chdir('/home/user/prayer-schedule-automation')
 
-    success = verify_complete_coverage()
-    sys.exit(0 if success else 1)
+    success1 = verify_complete_coverage()
+    success2 = verify_year_boundary()
+    sys.exit(0 if (success1 and success2) else 1)

@@ -23,6 +23,10 @@ FIXES APPLIED:
 6. Added better ISO week handling
 7. Added secure email delivery functionality
 8. Added automatic schedule archiving
+9. Fixed year-boundary rotation bug: ISO week numbers reset from 52/53 to 1
+   at year boundaries, causing cycle_position to jump and duplicate family
+   assignments. Now uses continuous week counting from a fixed reference date.
+10. Fixed total_assignments counter to show total families (155) not elder count (8)
 """
 
 import csv
@@ -289,13 +293,36 @@ def get_week_schedule(week_number):
     }  # Total: 8 assignments (but 9 prayer slots since Monday has 2)
 
 def calculate_week_number(date):
-    """Calculate ISO week number with better handling"""
+    """Calculate ISO week number for display purposes"""
     iso_year, iso_week, iso_day = date.isocalendar()
-    
+
     # Log the ISO week for debugging
     print(f"  Date {date.strftime('%Y-%m-%d')} = ISO Week {iso_week} of {iso_year}")
-    
+
     return iso_week
+
+# Reference Monday for continuous week counting.
+# This is the Monday of ISO Week 1 of 2026, chosen so that within 2026,
+# continuous week numbers match ISO week numbers exactly. This avoids the
+# bug where ISO week numbers reset from 52 (or 53) to 1 at year boundaries,
+# which caused cycle_position discontinuities and duplicate family assignments.
+REFERENCE_MONDAY = datetime(2025, 12, 29)
+
+def calculate_continuous_week(monday_date):
+    """Calculate a continuous week number that never resets at year boundaries.
+
+    ISO week numbers reset from 52/53 to 1 at the start of each ISO year,
+    which causes the 8-week rotation cycle_position to jump (e.g., from 3 to 0
+    instead of advancing to 4). This function returns a monotonically increasing
+    week number based on a fixed reference date, ensuring the cycle always
+    advances by exactly 1 each week.
+
+    The reference is chosen so that for all of 2026, the continuous week number
+    equals the ISO week number, maintaining identical behavior to the old code
+    within the current year while fixing the year-boundary problem.
+    """
+    days_diff = (monday_date - REFERENCE_MONDAY).days
+    return (days_diff // 7) + 1  # 1-based to match ISO week convention
 
 def create_v10_master_pools():
     """
@@ -972,16 +999,19 @@ def main():
         monday = monday.replace(hour=0, minute=0, second=0, microsecond=0)
         
         week_num = calculate_week_number(monday)
-        
+        continuous_week_num = calculate_continuous_week(monday)
+
         print("\nCrossville Church of Christ - Prayer Schedule Generator")
         print("VERSION 10 - DESKTOP VERSION (FIXED)")
         print("="*60)
         print(f"Generating schedule for Week {week_num}")
         print(f"Week of {monday.strftime('%B %d, %Y')}")
+        print(f"Continuous week: {continuous_week_num} (cycle position: {(continuous_week_num - 1) % 8})")
         print(f"\nALL FILES WILL BE SAVED TO: {DESKTOP_DIR}")
-        
-        # Generate assignments
-        elder_assignments = assign_families_for_week_v10(week_num)
+
+        # Generate assignments using continuous week number to avoid
+        # year-boundary discontinuities in the 8-week rotation cycle
+        elder_assignments = assign_families_for_week_v10(continuous_week_num)
         
         # Verify assignments
         print("\nVerifying current week assignments...")
@@ -997,13 +1027,13 @@ def main():
         
         # Show family counts
         print("\nFamily counts:")
-        total_assignments = 0
+        total_families_assigned = 0
         for elder, families in elder_assignments.items():
             print(f"  {elder}: {len(families)} families")
-            total_assignments += 1
-        
-        print(f"\nTotal elder assignments this week: {total_assignments}")
-        # Note: Monday has 2 elders, so we have 8 elders but 9 prayer slots
+            total_families_assigned += len(families)
+
+        print(f"\nTotal families assigned this week: {total_families_assigned}")
+        print(f"Elders with assignments: {len(elder_assignments)}")
 
         # Archive previous week's schedule before generating new one
         print("\nArchiving previous schedule...")
