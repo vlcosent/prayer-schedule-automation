@@ -191,7 +191,7 @@ The prayer schedule automation system is now:
 **Next Steps:**
 1. Merge feature branch to main
 2. System will automatically run every Monday at 8:00 AM CDT
-3. Email delivered to both recipients
+3. Email delivered to all 10 recipients
 4. Files committed to repository
 5. Complete audit trail maintained
 
