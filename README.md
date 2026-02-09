@@ -1,11 +1,11 @@
 # Prayer Schedule Automation
 
-Automated weekly prayer schedule generator for Crossville Church of Christ. This system automatically generates prayer schedules every Monday, rotating 8 elders through 155 church families with a perfect 8-week cycle.
+Automated weekly prayer schedule generator for Crossville Church of Christ. This system generates prayer schedules every Monday, rotating 8 elders through 155 church families with a perfect 8-week cycle.
 
 ## Features
 
 - **Automatic Weekly Generation**: Runs every Monday at 1:00 PM UTC (8:00 AM CDT / 7:00 AM CST)
-- **Email Delivery**: Automatically emails schedule to configured recipients
+- **Email Delivery**: Automatically emails schedule to 10 configured recipients
 - **Perfect Rotation**: 100% new families every week - no repeats until the 8-week cycle completes
 - **Smart Assignments**: No elder ever prays for their own family
 - **Balanced Distribution**: 18-20 families per elder for complete coverage
@@ -13,6 +13,7 @@ Automated weekly prayer schedule generator for Crossville Church of Christ. This
 - **Dual Environment Support**: Works in both CI/CD (GitHub Actions) and local desktop environments
 - **Automatic Archive**: Previous week's schedule automatically archived with date and week number
 - **Secure Configuration**: Email credentials stored safely in GitHub Secrets
+- **Year-Boundary Safe**: Continuous week counting prevents rotation errors at year transitions
 
 ## System Overview
 
@@ -29,6 +30,52 @@ The system performs 5 verification checks on every run:
 3. **Week-to-Week Rotation**: Confirms 100% new families each week
 4. **8-Week Cycle Check**: Validates the rotation repeats correctly
 5. **Family Coverage**: Ensures all 155 families are included
+
+### Rotation Algorithm
+
+Families are distributed round-robin from a sorted directory into 8 pools:
+
+| Pools 0-2 | Pools 3-7 |
+|-----------|-----------|
+| 20 families each | 19 families each |
+
+Each week, every elder is assigned a different pool via:
+```
+pool_index = (elder_index + cycle_position) % 8
+```
+
+The `cycle_position` advances by 1 each week, cycling through 0-7. After 8 weeks, each elder has prayed for every family exactly once.
+
+### Elder-Own-Family Reassignment
+
+When an elder's pool contains their own family, that family is filtered out and reassigned to a different elder to maintain balanced counts (18-20 per elder). This is handled by `FIXED_REASSIGNMENT_MAP` which covers cycle positions [0, 1, 2, 3, 5, 7].
+
+## Year-Boundary Fix (2026-02-06)
+
+### The Bug
+Python's `date.isocalendar()` returns ISO week numbers that reset from 52 (or 53) to 1 at the start of each ISO year. The original code used:
+```python
+cycle_position = (iso_week - 1) % 8
+```
+This caused a **discontinuity at year boundaries** -- the cycle position would jump (e.g., from 3 to 0 instead of advancing to 4), producing **duplicate family assignments**. Weeks 1-4 of 2026 were confirmed identical to Weeks 49-52 of 2025 in archived production schedules.
+
+### The Fix
+A continuous week counter that never resets:
+```python
+REFERENCE_MONDAY = datetime(2025, 12, 29)  # Monday of ISO Week 1 of 2026
+
+def calculate_continuous_week(monday_date):
+    days_diff = (monday_date - REFERENCE_MONDAY).days
+    return (days_diff // 7) + 1  # 1-based
+```
+
+The reference date was chosen so that within 2026, `continuous_week == ISO week`, ensuring zero disruption to current-year behavior while fixing all future year boundaries.
+
+### Verification
+- Tested 520 consecutive weeks (10 years, 9 year boundaries)
+- All cycle positions advance by exactly 1 each week
+- Zero family overlap between any consecutive weeks
+- 2026 ISO week alignment confirmed for all 53 weeks
 
 ## Automatic Execution (GitHub Actions)
 
@@ -52,7 +99,7 @@ The workflow automatically runs **every Monday at 1:00 PM UTC**:
 
 ### Manual Trigger
 You can also run the workflow manually:
-1. Go to **GitHub Repository** → **Actions** tab
+1. Go to **GitHub Repository** > **Actions** tab
 2. Select **"Weekly Prayer Schedule Generation"**
 3. Click **"Run workflow"** button
 4. Select branch (usually main)
@@ -97,24 +144,28 @@ The system automatically archives previous week's schedules before generating ne
 ├── Prayer_Schedule_Current_Week.txt (current week)
 ├── prayer_schedule_log.txt
 └── archive/
-    ├── Prayer_Schedule_2025-11-10_Week46.txt
-    ├── Prayer_Schedule_2025-11-03_Week45.txt
-    ├── Prayer_Schedule_2025-10-27_Week44.txt
-    └── ... (historical schedules)
+    ├── Prayer_Schedule_2025-11-14_Week46.txt
+    ├── Prayer_Schedule_2025-11-17_Week46.txt
+    ├── Prayer_Schedule_2025-11-24_Week47.txt
+    ├── Prayer_Schedule_2025-12-01_Week48.txt
+    ├── Prayer_Schedule_2025-12-08_Week49.txt
+    ├── Prayer_Schedule_2025-12-15_Week50.txt
+    ├── Prayer_Schedule_2025-12-19_Week51.txt
+    ├── Prayer_Schedule_2025-12-22_Week51.txt
+    ├── Prayer_Schedule_2025-12-29_Week52.txt
+    ├── Prayer_Schedule_2026-01-05_Week1.txt
+    ├── Prayer_Schedule_2026-01-12_Week2.txt
+    ├── Prayer_Schedule_2026-01-19_Week3.txt
+    ├── Prayer_Schedule_2026-01-26_Week4.txt
+    ├── Prayer_Schedule_2026-02-02_Week5.txt
+    ├── Prayer_Schedule_2026-02-06_Week6.txt
+    └── Prayer_Schedule_2026-02-09_Week6.txt  (16 files total)
 ```
 
 ### Archive File Naming
 - **Format**: `Prayer_Schedule_YYYY-MM-DD_WeekNN.txt`
 - **Date**: Monday of the archived week (YYYY-MM-DD)
 - **Week Number**: Extracted from file content (e.g., Week46)
-- **Example**: `Prayer_Schedule_2025-11-10_Week46.txt`
-
-### Benefits
-- **Historical Record**: Complete history of all generated schedules
-- **Audit Trail**: Review past elder assignments
-- **No Data Loss**: Previous schedules preserved automatically
-- **Easy Retrieval**: Chronologically sortable filenames
-- **Automatic Management**: No manual intervention required
 
 ### Location
 - **CI/GitHub Actions**: Archives stored in `archive/` in repository root
@@ -126,13 +177,24 @@ The system automatically archives previous week's schedules before generating ne
 The system automatically emails the prayer schedule to configured recipients each week.
 
 ### Email Details
-- **Sender**: churchprayerlistelders@gmail.com
-- **Recipients**:
-  - elders@crossvillechurchofchrist.org
-  - carolsparks.cs@gmail.com
-- **Service**: Gmail SMTP (smtp.gmail.com:587)
+- **Sender**: `churchprayerlistelders@gmail.com`
+- **Service**: Gmail SMTP (`smtp.gmail.com:587`, TLS)
 - **Format**: Full schedule text included in email body
 - **Subject Line**: "Weekly Prayer Schedule - Week XX (Date Range)"
+
+### Recipients (10 Total)
+| Recipient | Email | Role |
+|-----------|-------|------|
+| Elder Group List | `elders@crossvillechurchofchrist.org` | Group distribution list |
+| Carol Sparks | `carolsparks.cs@gmail.com` | Church staff |
+| Frank Bohannon | `frankbo72@gmail.com` | Elder |
+| Kyle Fairman | `kfair232@gmail.com` | Elder |
+| L.A. Fox | `laccafox@gmail.com` | Elder |
+| Alan Judd | `alanhjudd@gmail.com` | Elder |
+| Jonathan Loveday | `lovedayj@frontiernet.net` | Elder |
+| Larry McDuffee | `larrymcduffee@gmail.com` | Elder |
+| Brian McLaughlin | `brianmclaughlin423@gmail.com` | Elder |
+| Jerry Wood | `jbw@benlomand.net` | Elder |
 
 ### Setup Requirements
 
@@ -146,16 +208,16 @@ The system automatically emails the prayer schedule to configured recipients eac
 
 1. **Create Gmail App Password**:
    - Enable 2-Factor Authentication on the Gmail account
-   - Go to Google Account → Security → 2-Step Verification → App passwords
+   - Go to Google Account > Security > 2-Step Verification > App passwords
    - Generate an App Password for "Prayer Schedule Automation"
    - Copy the 16-character password
 
 2. **Configure GitHub Secrets**:
-   - Go to repository Settings → Secrets and variables → Actions
+   - Go to repository Settings > Secrets and variables > Actions
    - Add three secrets:
      - `SENDER_EMAIL`: `churchprayerlistelders@gmail.com`
      - `SENDER_PASSWORD`: (the 16-character App Password)
-     - `RECIPIENT_EMAILS`: `elders@crossvillechurchofchrist.org,carolsparks.cs@gmail.com`
+     - `RECIPIENT_EMAILS`: (comma-separated list of all recipient emails)
 
 3. **Test Email Delivery**:
    - Manually trigger the workflow via Actions tab
@@ -197,24 +259,42 @@ To temporarily disable email sending:
 
 ### Email Security
 
-✅ Credentials stored securely in GitHub Secrets (encrypted)
-✅ Uses Gmail App Passwords (not account password)
-✅ Requires 2-Factor Authentication
-✅ Never exposed in code or logs
-✅ SMTP connection secured with TLS
+- Credentials stored securely in GitHub Secrets (encrypted)
+- Uses Gmail App Passwords (not account password)
+- Requires 2-Factor Authentication
+- Never exposed in code or logs
+- SMTP connection secured with TLS
 
 ## Files in Repository
 
 ### Core Files
-- **`prayer_schedule_V10_DESKTOP_FIXED.py`** - Main Python script that generates schedules
-- **`UPDATE_PRAYER_SCHEDULE_FIXED.bat`** - Windows batch file for local execution
-- **`.github/workflows/weekly-schedule.yml`** - GitHub Actions workflow configuration
+| File | Description | Lines |
+|------|-------------|-------|
+| `prayer_schedule_V10_DESKTOP_FIXED.py` | Main schedule generator | ~1070 |
+| `comprehensive_verification.py` | Verification test suite | ~332 |
+| `analyze_missing_coverage.py` | Coverage analysis tool | - |
+| `calc_reassignments.py` | Reassignment calculator | - |
+| `UPDATE_PRAYER_SCHEDULE_FIXED.bat` | Windows batch launcher | - |
+| `.github/workflows/weekly-schedule.yml` | GitHub Actions workflow | ~52 |
+
+### Documentation
+| File | Description |
+|------|-------------|
+| `README.md` | This file |
+| `EMAIL_SETUP_GUIDE.md` | Email configuration guide |
+| `VERIFICATION_COMPLETE.md` | Verification report |
+| `IMPROVEMENT_PLAN.md` | Development roadmap |
 
 ### Generated Files (Auto-updated)
 - **`Prayer_Schedule_Current_Week.html`** - Current week's HTML schedule
 - **`Prayer_Schedule_Current_Week.txt`** - Current week's text schedule
 - **`prayer_schedule_log.txt`** - Generation activity log
-- **`archive/`** - Directory containing historical schedules (auto-created)
+- **`archive/`** - Directory containing 16 historical schedules
+
+### Dependencies
+- **Python Version**: 3.11
+- **External Packages**: None - all standard library
+  - `csv`, `datetime`, `os`, `sys`, `traceback`, `shutil`, `re`, `smtplib`, `email.mime`
 
 ## Local Desktop Usage
 
@@ -273,15 +353,26 @@ is_ci = os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 't
 ### Family Distribution
 - **Total Families**: 155 from church directory
 - **Distribution**: Round-robin across 8 pools
-  - Pools 0-2: 20 families each
-  - Pools 3-7: 19 families each
+  - Pools 0-2: 20 families each (60 total)
+  - Pools 3-7: 19 families each (95 total)
 - **Rotation**: Each elder gets a different pool each week
+- **Cycle**: Full rotation completes every 8 weeks
 
-### ISO Week Calculation
-The system uses ISO week numbers to ensure consistent scheduling:
-- Calculates the Monday of the current week
-- Uses Python's `isocalendar()` for accurate week numbers
-- Handles year boundaries correctly
+### Week Calculation
+The system uses **continuous week counting** to ensure consistent scheduling across year boundaries:
+
+```python
+REFERENCE_MONDAY = datetime(2025, 12, 29)  # ISO Week 1 of 2026
+
+def calculate_continuous_week(monday_date):
+    days_diff = (monday_date - REFERENCE_MONDAY).days
+    return (days_diff // 7) + 1
+```
+
+- Monotonically increasing week numbers (never resets)
+- Within 2026: continuous week == ISO week (backward compatible)
+- Handles ISO Week 53 years (e.g., 2026) automatically
+- See [Year-Boundary Fix](#year-boundary-fix-2026-02-06) for details
 
 ## Workflow Configuration
 
@@ -298,37 +389,51 @@ on:
 ### Permissions
 The workflow has `contents: write` permission to commit and push generated files.
 
-### Dependencies
-- **Python Version**: 3.11
-- **Python Packages**: All standard library (no external dependencies)
-  - `csv`
-  - `datetime`
-  - `os`
-  - `sys`
-  - `traceback`
-
 ## Verification & Testing
 
-### Algorithm Verification
+### Built-in Algorithm Verification
 Run the built-in verification:
 ```python
 verify_v10_algorithm()
 ```
 
 This tests 16 weeks of assignments and verifies:
-- Correct family counts
+- Correct family counts (18-20 per elder)
 - No elder has own family
 - 100% new families each week
 - 8-week cycle repeats correctly
 - All 155 families covered
 
+### Comprehensive Verification Suite
+Run the full test suite:
+```bash
+python comprehensive_verification.py
+```
+
+This performs two sets of tests:
+
+**Coverage Verification** (`verify_complete_coverage`):
+- Tests 10 consecutive weeks (weeks 46-55)
+- Verifies every family is assigned every week
+- Checks no family is assigned to multiple elders
+- Validates no elder has their own family
+- Confirms 8-week cycle repeats identically
+- Checks week-to-week rotation (0% overlap)
+
+**Year-Boundary Verification** (`verify_year_boundary`):
+- Tests 4 year boundaries: 2025-2026, 2026-2027, 2027-2028, 2028-2029
+- Verifies cycle positions advance by exactly 1 across boundaries
+- Checks zero family overlap between consecutive weeks at boundaries
+- Confirms continuous_week == ISO week for all of 2026
+
 ### Test Results
 All verification checks pass:
-- ✅ Family Count: 18-20 per elder
-- ✅ Elder Own Family: Never included
-- ✅ Week Rotation: 100% new families
-- ✅ 8-Week Cycle: Perfect repetition
-- ✅ Coverage: All 155 families included
+- Family Count: 18-20 per elder
+- Elder Own Family: Never included
+- Week Rotation: 100% new families
+- 8-Week Cycle: Perfect repetition
+- Coverage: All 155 families included
+- Year Boundaries: Continuous rotation across all tested boundaries
 
 ## Troubleshooting
 
@@ -372,14 +477,16 @@ To change when the workflow runs, edit the cron expression in `.github/workflows
 ## Version History
 
 ### Version 10 - DESKTOP - FIXED (Current)
-- ✅ Fixed hard-coded user paths
-- ✅ Added CI environment auto-detection
-- ✅ Comprehensive error handling
-- ✅ Fixed HTML character encoding
-- ✅ Removed unnecessary rebalancing code
-- ✅ Fixed weekly assignment counting
-- ✅ Improved ISO week handling
-- ✅ GitHub Actions integration
+1. Fixed hard-coded user paths - now uses `expanduser`
+2. Added CI environment auto-detection
+3. Comprehensive error handling
+4. Fixed HTML character encoding
+5. Removed unnecessary rebalancing code
+6. Fixed weekly assignment counting
+7. Added secure email delivery (Gmail SMTP)
+8. Added automatic schedule archiving
+9. **Fixed year-boundary rotation bug** (2026-02-06): ISO week numbers reset from 52/53 to 1 at year boundaries, causing `cycle_position` to jump and duplicate family assignments. Fixed with continuous week counting from a fixed reference date (`REFERENCE_MONDAY = Dec 29, 2025`).
+10. **Fixed total_assignments counter** (2026-02-06): Previously counted elders (always 8) instead of total families (155). Now correctly sums family counts across all elders.
 
 ### Previous Versions
 - Version 9 and earlier: Desktop-only implementations
@@ -424,13 +531,17 @@ To change when the workflow runs, edit the cron expression in `.github/workflows
    python prayer_schedule_V10_DESKTOP_FIXED.py
    ```
 
-3. **Test Workflow**:
+3. **Run Verification**:
+   ```bash
+   python comprehensive_verification.py
+   ```
+
+4. **Test Workflow**:
    - Push changes to trigger workflow
    - Or use manual workflow dispatch
    - Check Actions tab for execution logs
 
 ---
 
-**Status**: ✅ Fully Operational
+**Status**: Fully Operational
 **Next Scheduled Run**: Every Monday at 1:00 PM UTC (8:00 AM CDT / 7:00 AM CST)
-**Confidence Level**: 100%

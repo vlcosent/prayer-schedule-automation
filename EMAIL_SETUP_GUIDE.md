@@ -64,8 +64,26 @@ Create these **three** secrets:
 
 #### Secret 3: RECIPIENT_EMAILS
 - **Name:** `RECIPIENT_EMAILS`
-- **Value:** `elders@crossvillechurchofchrist.org,carolsparks.cs@gmail.com`
+- **Value:** Comma-separated list of all recipient emails (see full list below)
 - Click **Add secret**
+
+**Current Recipients (10 total):**
+```
+elders@crossvillechurchofchrist.org,carolsparks.cs@gmail.com,frankbo72@gmail.com,kfair232@gmail.com,laccafox@gmail.com,alanhjudd@gmail.com,lovedayj@frontiernet.net,larrymcduffee@gmail.com,brianmclaughlin423@gmail.com,jbw@benlomand.net
+```
+
+| Recipient | Email | Role |
+|-----------|-------|------|
+| Elder Group List | elders@crossvillechurchofchrist.org | Group distribution list |
+| Carol Sparks | carolsparks.cs@gmail.com | Church staff |
+| Frank Bohannon | frankbo72@gmail.com | Elder |
+| Kyle Fairman | kfair232@gmail.com | Elder |
+| L.A. Fox | laccafox@gmail.com | Elder |
+| Alan Judd | alanhjudd@gmail.com | Elder |
+| Jonathan Loveday | lovedayj@frontiernet.net | Elder |
+| Larry McDuffee | larrymcduffee@gmail.com | Elder |
+| Brian McLaughlin | brianmclaughlin423@gmail.com | Elder |
+| Jerry Wood | jbw@benlomand.net | Elder |
 
 ### 2.3 Verify Secrets
 
@@ -96,7 +114,7 @@ If you want to test locally before pushing:
 export EMAIL_ENABLED=true
 export SENDER_EMAIL="churchprayerlistelders@gmail.com"
 export SENDER_PASSWORD="your-app-password-here"
-export RECIPIENT_EMAILS="elders@crossvillechurchofchrist.org,carolsparks.cs@gmail.com"
+export RECIPIENT_EMAILS="elders@crossvillechurchofchrist.org,carolsparks.cs@gmail.com,frankbo72@gmail.com,kfair232@gmail.com,laccafox@gmail.com,alanhjudd@gmail.com,lovedayj@frontiernet.net,larrymcduffee@gmail.com,brianmclaughlin423@gmail.com,jbw@benlomand.net"
 
 # Run the script
 python prayer_schedule_V10_DESKTOP_FIXED.py
@@ -107,7 +125,7 @@ For Windows:
 set EMAIL_ENABLED=true
 set SENDER_EMAIL=churchprayerlistelders@gmail.com
 set SENDER_PASSWORD=your-app-password-here
-set RECIPIENT_EMAILS=elders@crossvillechurchofchrist.org,carolsparks.cs@gmail.com
+set RECIPIENT_EMAILS=elders@crossvillechurchofchrist.org,carolsparks.cs@gmail.com,frankbo72@gmail.com,kfair232@gmail.com,laccafox@gmail.com,alanhjudd@gmail.com,lovedayj@frontiernet.net,larrymcduffee@gmail.com,brianmclaughlin423@gmail.com,jbw@benlomand.net
 
 python prayer_schedule_V10_DESKTOP_FIXED.py
 ```
@@ -141,8 +159,8 @@ Crossville Church of Christ Elder Ministry
 5. Look for email-related messages:
    - `[EMAIL] Connecting to smtp.gmail.com:587...`
    - `[EMAIL] Logging in as churchprayerlistelders@gmail.com...`
-   - `[EMAIL] Sending to: elders@crossvillechurchofchrist.org, carolsparks.cs@gmail.com`
-   - `[✓] Email sent successfully to 2 recipient(s)`
+   - `[EMAIL] Sending to: elders@crossvillechurchofchrist.org, carolsparks.cs@gmail.com, frankbo72@gmail.com, ...`
+   - `[✓] Email sent successfully to 10 recipient(s)`
 
 ## Troubleshooting
 
@@ -170,7 +188,7 @@ Crossville Church of Christ Elder Ministry
 
 **Solution:**
 - Verify the RECIPIENT_EMAILS secret exists in GitHub Settings
-- Ensure the value is correct: `elders@crossvillechurchofchrist.org,carolsparks.cs@gmail.com`
+- Ensure the value contains all 10 recipient emails (see Secret 3 above for full list)
 
 ### Email not received
 
@@ -241,5 +259,5 @@ If you encounter issues:
 
 ---
 
-**Last Updated:** November 2025
+**Last Updated:** February 2026
 **System:** Prayer Schedule Automation v10
