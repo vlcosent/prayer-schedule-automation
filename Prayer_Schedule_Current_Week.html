@@ -5,10 +5,10 @@
     <meta charset="UTF-8">
     <meta http-equiv="refresh" content="3600">
     <style>
-        body { 
-            font-family: 'Segoe UI', Arial, sans-serif; 
-            line-height: 1.6; 
-            color: #333; 
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
             margin: 0;
             padding: 20px;
             background: #f5f5f5;
@@ -21,60 +21,144 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             overflow: hidden;
         }
-        .header { 
+        .header {
             background: #2c3e50;
-            color: white; 
-            padding: 30px; 
-            text-align: center; 
+            color: white;
+            padding: 30px;
+            text-align: center;
         }
         .header h1 { margin: 0 0 10px 0; font-size: 2.5em; }
         .header h2 { margin: 0 0 10px 0; font-size: 1.8em; }
         .header h3 { margin: 0; font-size: 1.2em; opacity: 0.9; }
         .content { padding: 30px; }
-        .schedule-table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin: 30px 0; 
+        /* Day-of-week navigation bar */
+        .day-nav {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            padding: 15px 20px;
+            background: #1a252f;
+            flex-wrap: wrap;
+        }
+        .day-nav .day-pill {
+            padding: 10px 18px;
+            border-radius: 25px;
+            font-size: 0.95em;
+            font-weight: 600;
+            color: #8899a6;
+            background: transparent;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            cursor: default;
+            text-align: center;
+            min-width: 80px;
+        }
+        .day-nav .day-pill.today {
+            background: #e67e22;
+            color: white;
+            border-color: #e67e22;
+            box-shadow: 0 2px 12px rgba(230, 126, 34, 0.4);
+            transform: scale(1.08);
+        }
+        .day-nav .day-pill.past {
+            color: #5a6a7a;
+            border-color: #2c3e50;
+        }
+        .day-nav .day-pill.future {
+            color: #8899a6;
+            border-color: #2c3e50;
+        }
+        .day-nav .day-pill .day-label {
+            display: block;
+            font-size: 0.85em;
+            opacity: 0.7;
+        }
+        .day-nav .day-pill.today .day-label {
+            opacity: 1;
+        }
+        /* Today's prayer focus banner */
+        .today-banner {
+            background: linear-gradient(135deg, #e67e22, #d35400);
+            color: white;
+            padding: 25px 30px;
+            text-align: center;
+            display: none;
+        }
+        .today-banner h2 {
+            margin: 0 0 8px 0;
+            font-size: 1.5em;
+        }
+        .today-banner .today-elder {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        .today-banner .today-count {
+            font-size: 0.95em;
+            opacity: 0.9;
+        }
+        .schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 30px 0;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-        .schedule-table th, .schedule-table td { 
-            border: 1px solid #ddd; 
-            padding: 15px; 
-            text-align: left; 
+        .schedule-table th, .schedule-table td {
+            border: 1px solid #ddd;
+            padding: 15px;
+            text-align: left;
         }
-        .schedule-table th { 
+        .schedule-table th {
             background: #3498db;
-            color: white; 
+            color: white;
             font-size: 1.1em;
         }
         .schedule-table tr:nth-child(even) { background-color: #f8f9fa; }
         .schedule-table tr:hover { background-color: #e8f4f8; }
+        .schedule-table tr.today-row {
+            background-color: #fef3e2 !important;
+            border-left: 4px solid #e67e22;
+        }
+        .schedule-table tr.today-row td {
+            font-weight: bold;
+            color: #d35400;
+        }
         .highlight { background-color: #fff3cd !important; font-weight: bold; }
-        .prayer-list { 
-            margin: 40px 0; 
+        .prayer-list {
+            margin: 40px 0;
             page-break-inside: avoid;
             border-left: 4px solid #3498db;
             padding-left: 20px;
         }
-        .prayer-list h3 { 
-            color: #2c3e50; 
-            border-bottom: 2px solid #3498db; 
+        .prayer-list.today-prayer-list {
+            border-left-color: #e67e22;
+            background: #fef9f3;
+            padding: 20px;
+            border-radius: 0 8px 8px 0;
+        }
+        .prayer-list h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
             padding-bottom: 10px;
             font-size: 1.3em;
         }
-        .family-list { 
-            columns: 2; 
+        .prayer-list.today-prayer-list h3 {
+            color: #d35400;
+            border-bottom-color: #e67e22;
+        }
+        .family-list {
+            columns: 2;
             column-gap: 40px;
             list-style-type: none;
             padding: 0;
         }
-        .family-list li { 
+        .family-list li {
             margin: 8px 0;
             padding: 5px;
             border-radius: 5px;
             transition: background-color 0.3s;
         }
-        .family-list li:hover { 
+        .family-list li:hover {
             background-color: #e8f4f8;
         }
         .family-list li:before {
@@ -82,6 +166,9 @@
             color: #3498db;
             font-weight: bold;
             margin-right: 8px;
+        }
+        .today-prayer-list .family-list li:before {
+            color: #e67e22;
         }
         .update-time {
             text-align: center;
@@ -98,6 +185,15 @@
         @media print {
             body { background: white; }
             .container { box-shadow: none; }
+            .day-nav { display: none; }
+            .today-banner { display: none !important; }
+        }
+        @media (max-width: 600px) {
+            .day-nav .day-pill {
+                padding: 8px 10px;
+                min-width: 40px;
+                font-size: 0.8em;
+            }
         }
     </style>
 </head>
@@ -108,13 +204,53 @@
             <h2>Elder Prayer Schedule - Week 7</h2>
             <h3>February 09 - February 15, 2026</h3>
         </div>
-        
+
+        <!-- Day-of-week navigation bar: highlights current day -->
+        <div class="day-nav" id="dayNav">
+            <div class="day-pill" data-date="2026-02-09" data-day="Monday">
+                Mon
+                <span class="day-label">Feb 09</span>
+            </div>
+            <div class="day-pill" data-date="2026-02-10" data-day="Tuesday">
+                Tue
+                <span class="day-label">Feb 10</span>
+            </div>
+            <div class="day-pill" data-date="2026-02-11" data-day="Wednesday">
+                Wed
+                <span class="day-label">Feb 11</span>
+            </div>
+            <div class="day-pill" data-date="2026-02-12" data-day="Thursday">
+                Thu
+                <span class="day-label">Feb 12</span>
+            </div>
+            <div class="day-pill" data-date="2026-02-13" data-day="Friday">
+                Fri
+                <span class="day-label">Feb 13</span>
+            </div>
+            <div class="day-pill" data-date="2026-02-14" data-day="Saturday">
+                Sat
+                <span class="day-label">Feb 14</span>
+            </div>
+            <div class="day-pill" data-date="2026-02-15" data-day="Sunday">
+                Sun
+                <span class="day-label">Feb 15</span>
+            </div>
+        </div>
+
+        <!-- Today's prayer focus banner (shown dynamically via JS) -->
+        <div class="today-banner" id="todayBanner">
+            <h2>Today's Prayer Focus</h2>
+            <div class="today-elder" id="todayElder"></div>
+            <div class="today-count" id="todayCount"></div>
+        </div>
+
         <div class="content">
             <div class="note">
                 <strong>Note:</strong> Each elder has 18-20 families to ensure complete rotation coverage.
                 Monday always has two elders assigned for prayer.
+                Daily emails are sent each morning to remind everyone of today's prayer assignment.
             </div>
-            
+
             <h2>This Week's Prayer Schedule</h2>
             <table class="schedule-table">
                 <tr>
@@ -123,43 +259,43 @@
                     <th>Elder(s) Assigned</th>
                 </tr>
     
-                <tr class="highlight">
+                <tr class="highlight" data-date="2026-02-09" data-day="Monday">
                     <td><strong>Monday</strong></td>
                     <td>February 09</td>
                     <td>Alan Judd & Brian McLaughlin</td>
                 </tr>
         
-                <tr class="">
+                <tr class="" data-date="2026-02-10" data-day="Tuesday">
                     <td><strong>Tuesday</strong></td>
                     <td>February 10</td>
                     <td>Frank Bohannon</td>
                 </tr>
         
-                <tr class="">
+                <tr class="" data-date="2026-02-11" data-day="Wednesday">
                     <td><strong>Wednesday</strong></td>
                     <td>February 11</td>
                     <td>Jerry Wood</td>
                 </tr>
         
-                <tr class="">
+                <tr class="" data-date="2026-02-12" data-day="Thursday">
                     <td><strong>Thursday</strong></td>
                     <td>February 12</td>
                     <td>Jonathan Loveday</td>
                 </tr>
         
-                <tr class="">
+                <tr class="" data-date="2026-02-13" data-day="Friday">
                     <td><strong>Friday</strong></td>
                     <td>February 13</td>
                     <td>Kyle Fairman</td>
                 </tr>
         
-                <tr class="">
+                <tr class="" data-date="2026-02-14" data-day="Saturday">
                     <td><strong>Saturday</strong></td>
                     <td>February 14</td>
                     <td>L.A. Fox</td>
                 </tr>
         
-                <tr class="">
+                <tr class="" data-date="2026-02-15" data-day="Sunday">
                     <td><strong>Sunday</strong></td>
                     <td>February 15</td>
                     <td>Larry McDuffee</td>
@@ -169,7 +305,7 @@
             
             <h2>Prayer Lists for This Week</h2>
     
-            <div class="prayer-list">
+            <div class="prayer-list" data-date="2026-02-09" data-day="Monday" data-elder="Alan Judd" data-count="19">
                 <h3>Alan Judd - Monday, February 09</h3>
                 <p><em>19 families to pray for:</em></p>
                 <ul class="family-list">
@@ -195,7 +331,7 @@
             </ul>
             </div>
             
-            <div class="prayer-list">
+            <div class="prayer-list" data-date="2026-02-09" data-day="Monday" data-elder="Brian McLaughlin" data-count="19">
                 <h3>Brian McLaughlin - Monday, February 09</h3>
                 <p><em>19 families to pray for:</em></p>
                 <ul class="family-list">
@@ -221,7 +357,7 @@
             </ul>
             </div>
             
-            <div class="prayer-list">
+            <div class="prayer-list" data-date="2026-02-10" data-day="Tuesday" data-elder="Frank Bohannon" data-count="20">
                 <h3>Frank Bohannon - Tuesday, February 10</h3>
                 <p><em>20 families to pray for:</em></p>
                 <ul class="family-list">
@@ -248,7 +384,7 @@
             </ul>
             </div>
             
-            <div class="prayer-list">
+            <div class="prayer-list" data-date="2026-02-11" data-day="Wednesday" data-elder="Jerry Wood" data-count="20">
                 <h3>Jerry Wood - Wednesday, February 11</h3>
                 <p><em>20 families to pray for:</em></p>
                 <ul class="family-list">
@@ -275,7 +411,7 @@
             </ul>
             </div>
             
-            <div class="prayer-list">
+            <div class="prayer-list" data-date="2026-02-12" data-day="Thursday" data-elder="Jonathan Loveday" data-count="20">
                 <h3>Jonathan Loveday - Thursday, February 12</h3>
                 <p><em>20 families to pray for:</em></p>
                 <ul class="family-list">
@@ -302,7 +438,7 @@
             </ul>
             </div>
             
-            <div class="prayer-list">
+            <div class="prayer-list" data-date="2026-02-13" data-day="Friday" data-elder="Kyle Fairman" data-count="19">
                 <h3>Kyle Fairman - Friday, February 13</h3>
                 <p><em>19 families to pray for:</em></p>
                 <ul class="family-list">
@@ -328,7 +464,7 @@
             </ul>
             </div>
             
-            <div class="prayer-list">
+            <div class="prayer-list" data-date="2026-02-14" data-day="Saturday" data-elder="L.A. Fox" data-count="19">
                 <h3>L.A. Fox - Saturday, February 14</h3>
                 <p><em>19 families to pray for:</em></p>
                 <ul class="family-list">
@@ -354,7 +490,7 @@
             </ul>
             </div>
             
-            <div class="prayer-list">
+            <div class="prayer-list" data-date="2026-02-15" data-day="Sunday" data-elder="Larry McDuffee" data-count="19">
                 <h3>Larry McDuffee - Sunday, February 15</h3>
                 <p><em>19 families to pray for:</em></p>
                 <ul class="family-list">
@@ -381,11 +517,70 @@
             </div>
             
             <div class="update-time">
-                Last updated: February 09, 2026 at 02:16 PM
-                <br>Next update: Next Monday at 6:00 AM
+                Last updated: February 13, 2026 at 01:51 AM
+                <br>Daily emails sent every morning. Schedule regenerated each Monday.
             </div>
         </div>
     </div>
+
+    <script>
+    (function() {
+        // Get today's date in YYYY-MM-DD format (local timezone)
+        var now = new Date();
+        var yyyy = now.getFullYear();
+        var mm = String(now.getMonth() + 1).padStart(2, '0');
+        var dd = String(now.getDate()).padStart(2, '0');
+        var todayStr = yyyy + '-' + mm + '-' + dd;
+        var todayDayIdx = now.getDay(); // 0=Sun, 1=Mon, ...
+
+        // Highlight the day pill
+        var pills = document.querySelectorAll('.day-pill');
+        var foundToday = false;
+        pills.forEach(function(pill) {
+            var pillDate = pill.getAttribute('data-date');
+            if (pillDate === todayStr) {
+                pill.classList.add('today');
+                foundToday = true;
+            } else if (pillDate < todayStr) {
+                pill.classList.add('past');
+            } else {
+                pill.classList.add('future');
+            }
+        });
+
+        // Highlight today's row in the schedule table
+        var rows = document.querySelectorAll('.schedule-table tr[data-date]');
+        rows.forEach(function(row) {
+            if (row.getAttribute('data-date') === todayStr) {
+                row.classList.add('today-row');
+            }
+        });
+
+        // Highlight today's prayer list sections and show the banner
+        var prayerLists = document.querySelectorAll('.prayer-list[data-date]');
+        var todayElders = [];
+        var todayFamilyCount = 0;
+        prayerLists.forEach(function(pl) {
+            if (pl.getAttribute('data-date') === todayStr) {
+                pl.classList.add('today-prayer-list');
+                todayElders.push(pl.getAttribute('data-elder'));
+                todayFamilyCount += parseInt(pl.getAttribute('data-count') || '0');
+            }
+        });
+
+        // Show the today banner if we found today in the schedule
+        if (todayElders.length > 0) {
+            var banner = document.getElementById('todayBanner');
+            var elderEl = document.getElementById('todayElder');
+            var countEl = document.getElementById('todayCount');
+            if (banner && elderEl && countEl) {
+                elderEl.textContent = todayElders.join(' & ');
+                countEl.textContent = todayFamilyCount + ' families being prayed for today';
+                banner.style.display = 'block';
+            }
+        }
+    })();
+    </script>
 </body>
 </html>
     

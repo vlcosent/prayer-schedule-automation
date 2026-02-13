@@ -1,18 +1,25 @@
 """
-Crossville Church of Christ - Prayer Schedule System (VERSION 10 - DESKTOP - FIXED)
+Crossville Church of Christ - Prayer Schedule System (VERSION 10 - DAILY EMAIL)
 ==================================================================================
 DESKTOP VERSION - All files saved to desktop
-FIXED VERSION - Addresses all critical bugs found in analysis
+DAILY EMAIL EDITION - Sends daily prayer reminder emails
 
 Features:
 - 100% new families every week GUARANTEED
 - No elder ever prays for their own family
-- Email delivery of weekly schedules (secure Gmail integration)
+- DAILY email delivery: each day's elder(s) get a prayer reminder sent to all
+- Weekly full schedule email on Mondays
+- Website highlights current day of the week at the top
 - ASCII only output (no Unicode errors)
 - Perfect 8-week rotation cycle
 - Flexible family counts (18-20 per elder) to ensure perfect rotation
 - Automatic archiving of previous schedules
 - ALL FILES SAVED TO DESKTOP (or current directory in CI)
+
+DAILY SCHEDULE:
+- Monday: Full schedule regeneration + weekly email + daily email
+- Tuesday-Sunday: HTML/text file refresh + daily prayer reminder email
+- GitHub Actions runs every day at 1:00 PM UTC (8:00 AM CDT)
 
 FIXES APPLIED:
 1. Fixed hard-coded user path - now uses expanduser
@@ -27,6 +34,8 @@ FIXES APPLIED:
    at year boundaries, causing cycle_position to jump and duplicate family
    assignments. Now uses continuous week counting from a fixed reference date.
 10. Fixed total_assignments counter to show total families (155) not elder count (8)
+11. Added daily email automation - sends prayer reminder each day
+12. Added day-of-week highlighting on website (JavaScript-based)
 """
 
 import csv
@@ -562,10 +571,10 @@ def generate_schedule_content(week_number, start_date, elder_assignments):
     <meta charset="UTF-8">
     <meta http-equiv="refresh" content="3600">
     <style>
-        body {{ 
-            font-family: 'Segoe UI', Arial, sans-serif; 
-            line-height: 1.6; 
-            color: #333; 
+        body {{
+            font-family: 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
             margin: 0;
             padding: 20px;
             background: #f5f5f5;
@@ -578,60 +587,144 @@ def generate_schedule_content(week_number, start_date, elder_assignments):
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             overflow: hidden;
         }}
-        .header {{ 
+        .header {{
             background: #2c3e50;
-            color: white; 
-            padding: 30px; 
-            text-align: center; 
+            color: white;
+            padding: 30px;
+            text-align: center;
         }}
         .header h1 {{ margin: 0 0 10px 0; font-size: 2.5em; }}
         .header h2 {{ margin: 0 0 10px 0; font-size: 1.8em; }}
         .header h3 {{ margin: 0; font-size: 1.2em; opacity: 0.9; }}
         .content {{ padding: 30px; }}
-        .schedule-table {{ 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin: 30px 0; 
+        /* Day-of-week navigation bar */
+        .day-nav {{
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            padding: 15px 20px;
+            background: #1a252f;
+            flex-wrap: wrap;
+        }}
+        .day-nav .day-pill {{
+            padding: 10px 18px;
+            border-radius: 25px;
+            font-size: 0.95em;
+            font-weight: 600;
+            color: #8899a6;
+            background: transparent;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            cursor: default;
+            text-align: center;
+            min-width: 80px;
+        }}
+        .day-nav .day-pill.today {{
+            background: #e67e22;
+            color: white;
+            border-color: #e67e22;
+            box-shadow: 0 2px 12px rgba(230, 126, 34, 0.4);
+            transform: scale(1.08);
+        }}
+        .day-nav .day-pill.past {{
+            color: #5a6a7a;
+            border-color: #2c3e50;
+        }}
+        .day-nav .day-pill.future {{
+            color: #8899a6;
+            border-color: #2c3e50;
+        }}
+        .day-nav .day-pill .day-label {{
+            display: block;
+            font-size: 0.85em;
+            opacity: 0.7;
+        }}
+        .day-nav .day-pill.today .day-label {{
+            opacity: 1;
+        }}
+        /* Today's prayer focus banner */
+        .today-banner {{
+            background: linear-gradient(135deg, #e67e22, #d35400);
+            color: white;
+            padding: 25px 30px;
+            text-align: center;
+            display: none;
+        }}
+        .today-banner h2 {{
+            margin: 0 0 8px 0;
+            font-size: 1.5em;
+        }}
+        .today-banner .today-elder {{
+            font-size: 1.3em;
+            font-weight: bold;
+            margin: 5px 0;
+        }}
+        .today-banner .today-count {{
+            font-size: 0.95em;
+            opacity: 0.9;
+        }}
+        .schedule-table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin: 30px 0;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }}
-        .schedule-table th, .schedule-table td {{ 
-            border: 1px solid #ddd; 
-            padding: 15px; 
-            text-align: left; 
+        .schedule-table th, .schedule-table td {{
+            border: 1px solid #ddd;
+            padding: 15px;
+            text-align: left;
         }}
-        .schedule-table th {{ 
+        .schedule-table th {{
             background: #3498db;
-            color: white; 
+            color: white;
             font-size: 1.1em;
         }}
         .schedule-table tr:nth-child(even) {{ background-color: #f8f9fa; }}
         .schedule-table tr:hover {{ background-color: #e8f4f8; }}
+        .schedule-table tr.today-row {{
+            background-color: #fef3e2 !important;
+            border-left: 4px solid #e67e22;
+        }}
+        .schedule-table tr.today-row td {{
+            font-weight: bold;
+            color: #d35400;
+        }}
         .highlight {{ background-color: #fff3cd !important; font-weight: bold; }}
-        .prayer-list {{ 
-            margin: 40px 0; 
+        .prayer-list {{
+            margin: 40px 0;
             page-break-inside: avoid;
             border-left: 4px solid #3498db;
             padding-left: 20px;
         }}
-        .prayer-list h3 {{ 
-            color: #2c3e50; 
-            border-bottom: 2px solid #3498db; 
+        .prayer-list.today-prayer-list {{
+            border-left-color: #e67e22;
+            background: #fef9f3;
+            padding: 20px;
+            border-radius: 0 8px 8px 0;
+        }}
+        .prayer-list h3 {{
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
             padding-bottom: 10px;
             font-size: 1.3em;
         }}
-        .family-list {{ 
-            columns: 2; 
+        .prayer-list.today-prayer-list h3 {{
+            color: #d35400;
+            border-bottom-color: #e67e22;
+        }}
+        .family-list {{
+            columns: 2;
             column-gap: 40px;
             list-style-type: none;
             padding: 0;
         }}
-        .family-list li {{ 
+        .family-list li {{
             margin: 8px 0;
             padding: 5px;
             border-radius: 5px;
             transition: background-color 0.3s;
         }}
-        .family-list li:hover {{ 
+        .family-list li:hover {{
             background-color: #e8f4f8;
         }}
         .family-list li:before {{
@@ -639,6 +732,9 @@ def generate_schedule_content(week_number, start_date, elder_assignments):
             color: #3498db;
             font-weight: bold;
             margin-right: 8px;
+        }}
+        .today-prayer-list .family-list li:before {{
+            color: #e67e22;
         }}
         .update-time {{
             text-align: center;
@@ -655,6 +751,15 @@ def generate_schedule_content(week_number, start_date, elder_assignments):
         @media print {{
             body {{ background: white; }}
             .container {{ box-shadow: none; }}
+            .day-nav {{ display: none; }}
+            .today-banner {{ display: none !important; }}
+        }}
+        @media (max-width: 600px) {{
+            .day-nav .day-pill {{
+                padding: 8px 10px;
+                min-width: 40px;
+                font-size: 0.8em;
+            }}
         }}
     </style>
 </head>
@@ -665,13 +770,40 @@ def generate_schedule_content(week_number, start_date, elder_assignments):
             <h2>Elder Prayer Schedule - Week {week_number}</h2>
             <h3>{date_range}</h3>
         </div>
-        
+
+        <!-- Day-of-week navigation bar: highlights current day -->
+        <div class="day-nav" id="dayNav">
+    """
+
+    # Generate day pills with data attributes for JS highlighting
+    current_date_for_nav = start_date
+    for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]:
+        elders_for_day = schedule[day]
+        elder_names_for_nav = " & ".join(elders_for_day)
+        date_str = current_date_for_nav.strftime('%Y-%m-%d')
+        html += f"""        <div class="day-pill" data-date="{date_str}" data-day="{day}">
+                {day[:3]}
+                <span class="day-label">{current_date_for_nav.strftime('%b %d')}</span>
+            </div>
+    """
+        current_date_for_nav += timedelta(days=1)
+
+    html += f"""    </div>
+
+        <!-- Today's prayer focus banner (shown dynamically via JS) -->
+        <div class="today-banner" id="todayBanner">
+            <h2>Today's Prayer Focus</h2>
+            <div class="today-elder" id="todayElder"></div>
+            <div class="today-count" id="todayCount"></div>
+        </div>
+
         <div class="content">
             <div class="note">
                 <strong>Note:</strong> Each elder has 18-20 families to ensure complete rotation coverage.
                 Monday always has two elders assigned for prayer.
+                Daily emails are sent each morning to remind everyone of today's prayer assignment.
             </div>
-            
+
             <h2>This Week's Prayer Schedule</h2>
             <table class="schedule-table">
                 <tr>
@@ -704,15 +836,16 @@ Note: Monday always has two elders assigned for prayer.
         elders = schedule[day]
         elder_names = " & ".join(elders)
         highlight_class = "highlight" if len(elders) > 1 else ""
-        
+        date_attr = current_date.strftime('%Y-%m-%d')
+
         html += f"""
-                <tr class="{highlight_class}">
+                <tr class="{highlight_class}" data-date="{date_attr}" data-day="{day}">
                     <td><strong>{day}</strong></td>
                     <td>{current_date.strftime('%B %d')}</td>
                     <td>{elder_names}</td>
                 </tr>
         """
-        
+
         text += f"{day}, {current_date.strftime('%B %d')}: {elder_names}\n"
         current_date += timedelta(days=1)
     
@@ -726,26 +859,27 @@ Note: Monday always has two elders assigned for prayer.
     
     # Add prayer lists
     current_date = start_date
-    
+
     for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]:
         elders = schedule[day]
-        
+        date_attr = current_date.strftime('%Y-%m-%d')
+
         for elder in elders:
             prayer_group = elder_assignments[elder]
-            
+
             # HTML version
             html += f"""
-            <div class="prayer-list">
+            <div class="prayer-list" data-date="{date_attr}" data-day="{day}" data-elder="{elder}" data-count="{len(prayer_group)}">
                 <h3>{elder} - {day}, {current_date.strftime('%B %d')}</h3>
                 <p><em>{len(prayer_group)} families to pray for:</em></p>
                 <ul class="family-list">
             """
-            
+
             for family in prayer_group:
                 # Escape HTML special characters
                 family_escaped = family.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
                 html += f"            <li>{family_escaped}</li>\n"
-            
+
             html += """            </ul>
             </div>
             """
@@ -762,14 +896,73 @@ Note: Monday always has two elders assigned for prayer.
         
         current_date += timedelta(days=1)
     
-    # Footer
+    # Footer with JavaScript for dynamic day highlighting
     html += f"""
             <div class="update-time">
                 Last updated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}
-                <br>Next update: Next Monday at 6:00 AM
+                <br>Daily emails sent every morning. Schedule regenerated each Monday.
             </div>
         </div>
     </div>
+
+    <script>
+    (function() {{
+        // Get today's date in YYYY-MM-DD format (local timezone)
+        var now = new Date();
+        var yyyy = now.getFullYear();
+        var mm = String(now.getMonth() + 1).padStart(2, '0');
+        var dd = String(now.getDate()).padStart(2, '0');
+        var todayStr = yyyy + '-' + mm + '-' + dd;
+        var todayDayIdx = now.getDay(); // 0=Sun, 1=Mon, ...
+
+        // Highlight the day pill
+        var pills = document.querySelectorAll('.day-pill');
+        var foundToday = false;
+        pills.forEach(function(pill) {{
+            var pillDate = pill.getAttribute('data-date');
+            if (pillDate === todayStr) {{
+                pill.classList.add('today');
+                foundToday = true;
+            }} else if (pillDate < todayStr) {{
+                pill.classList.add('past');
+            }} else {{
+                pill.classList.add('future');
+            }}
+        }});
+
+        // Highlight today's row in the schedule table
+        var rows = document.querySelectorAll('.schedule-table tr[data-date]');
+        rows.forEach(function(row) {{
+            if (row.getAttribute('data-date') === todayStr) {{
+                row.classList.add('today-row');
+            }}
+        }});
+
+        // Highlight today's prayer list sections and show the banner
+        var prayerLists = document.querySelectorAll('.prayer-list[data-date]');
+        var todayElders = [];
+        var todayFamilyCount = 0;
+        prayerLists.forEach(function(pl) {{
+            if (pl.getAttribute('data-date') === todayStr) {{
+                pl.classList.add('today-prayer-list');
+                todayElders.push(pl.getAttribute('data-elder'));
+                todayFamilyCount += parseInt(pl.getAttribute('data-count') || '0');
+            }}
+        }});
+
+        // Show the today banner if we found today in the schedule
+        if (todayElders.length > 0) {{
+            var banner = document.getElementById('todayBanner');
+            var elderEl = document.getElementById('todayElder');
+            var countEl = document.getElementById('todayCount');
+            if (banner && elderEl && countEl) {{
+                elderEl.textContent = todayElders.join(' & ');
+                countEl.textContent = todayFamilyCount + ' families being prayed for today';
+                banner.style.display = 'block';
+            }}
+        }}
+    }})();
+    </script>
 </body>
 </html>
     """
@@ -834,7 +1027,7 @@ def archive_previous_schedule():
 
 def send_email_schedule(week_num, monday, text_content):
     """
-    Send the prayer schedule via email.
+    Send the full weekly prayer schedule via email (used on Mondays).
     Uses Gmail SMTP with credentials from environment variables.
     """
     if not EMAIL_ENABLED:
@@ -893,7 +1086,7 @@ Crossville Church of Christ Elder Ministry
         server.send_message(msg)
         server.quit()
 
-        print(f"   [✓] Email sent successfully to {len(recipients)} recipient(s)")
+        print(f"   [OK] Weekly email sent successfully to {len(recipients)} recipient(s)")
         return True
 
     except smtplib.SMTPAuthenticationError as e:
@@ -905,6 +1098,115 @@ Crossville Church of Christ Elder Ministry
         return False
     except Exception as e:
         print(f"   [ERROR] Failed to send email: {e}")
+        traceback.print_exc()
+        return False
+
+
+def send_daily_email(today, week_num, monday, elder_assignments):
+    """
+    Send a daily prayer reminder email highlighting today's elder(s) and their families.
+    This is sent every day (including Monday) so each elder gets a reminder on their day.
+    """
+    if not EMAIL_ENABLED:
+        print("   [INFO] Email is disabled (EMAIL_ENABLED not set to 'true')")
+        return False
+
+    if not SENDER_PASSWORD:
+        print("   [WARNING] Email password not configured (SENDER_PASSWORD not set)")
+        print("   [INFO] Skipping daily email delivery")
+        return False
+
+    try:
+        # Parse recipient emails
+        recipients = [email.strip() for email in RECIPIENT_EMAILS.split(',') if email.strip()]
+
+        if not recipients:
+            print("   [WARNING] No recipient emails configured")
+            return False
+
+        # Determine today's day name
+        day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        today_name = day_names[today.weekday()]
+
+        # Get today's schedule
+        schedule = get_week_schedule(week_num)
+        todays_elders = schedule.get(today_name, [])
+
+        if not todays_elders:
+            print(f"   [INFO] No elders assigned for {today_name} - skipping daily email")
+            return False
+
+        # Build the daily prayer details
+        elder_details = ""
+        for elder in todays_elders:
+            families = elder_assignments.get(elder, [])
+            elder_details += f"\n{elder} - {len(families)} families to pray for:\n"
+            elder_details += "-" * 50 + "\n"
+            for i, family in enumerate(families, 1):
+                elder_details += f"  {i:3}. {family}\n"
+            elder_details += "\n"
+
+        elder_names = " & ".join(todays_elders)
+        today_formatted = today.strftime('%A, %B %d, %Y')
+
+        # Calculate date range for subject
+        end_date = monday + timedelta(days=6)
+        date_range = f"{monday.strftime('%b %d')}-{end_date.strftime('%d, %Y')}"
+
+        # Create email message
+        msg = MIMEMultipart()
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = ', '.join(recipients)
+        msg['Subject'] = f"Daily Prayer Reminder - {today_name}: {elder_names} (Week {week_num})"
+
+        # Email body - today's prayer focus
+        email_body = f"""Greetings,
+
+TODAY'S PRAYER FOCUS - {today_formatted}
+{'=' * 60}
+
+Today is {today_name} of Week {week_num} ({date_range}).
+
+Elder(s) assigned to pray today: {elder_names}
+
+{elder_details}
+Please keep these families in your prayers today.
+
+{'=' * 60}
+This daily reminder was automatically generated by the Prayer Schedule System.
+
+Blessings,
+Crossville Church of Christ Elder Ministry
+"""
+
+        msg.attach(MIMEText(email_body, 'plain'))
+
+        # Connect to Gmail SMTP server
+        print(f"   [EMAIL] Connecting to {SMTP_SERVER}:{SMTP_PORT}...")
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()  # Secure the connection
+
+        # Login
+        print(f"   [EMAIL] Logging in as {SENDER_EMAIL}...")
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+
+        # Send email
+        print(f"   [EMAIL] Sending daily reminder to: {', '.join(recipients)}")
+        server.send_message(msg)
+        server.quit()
+
+        print(f"   [OK] Daily email sent successfully for {today_name} to {len(recipients)} recipient(s)")
+        return True
+
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"   [ERROR] Email authentication failed: {e}")
+        print(f"   [INFO] Please verify SENDER_PASSWORD is a valid Gmail App Password")
+        return False
+    except smtplib.SMTPException as e:
+        print(f"   [ERROR] SMTP error occurred: {e}")
+        return False
+    except Exception as e:
+        print(f"   [ERROR] Failed to send daily email: {e}")
         traceback.print_exc()
         return False
 
@@ -979,52 +1281,62 @@ def verify_schedule(assignments):
     return len(issues) == 0, issues
 
 def main():
-    """Main execution with better error handling"""
+    """Main execution with daily email support.
+
+    Behavior:
+    - Monday: Regenerate weekly schedule files, send full weekly email, send daily email
+    - Tuesday-Sunday: Send daily prayer reminder email only (no file regeneration)
+    - Always: Regenerate HTML with current-day highlighting data
+    """
     try:
-        log_activity("Starting prayer schedule generation (VERSION 10 - DESKTOP - FIXED)")
-        
+        today = datetime.now()
+        is_monday = today.weekday() == 0
+        day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        today_name = day_names[today.weekday()]
+
+        log_activity(f"Starting prayer schedule system ({today_name}) (VERSION 10 - DAILY EMAIL)")
+
         # First verify the algorithm
         print("\nRunning algorithm verification...")
         if not verify_v10_algorithm():
             print("\n[X] V10 algorithm verification FAILED!")
             print("Aborting to prevent generating incorrect schedules.")
             return False
-        
+
         print("\n[OK] Algorithm verification PASSED!")
-        
-        # Get current week information
-        today = datetime.now()
+
+        # Get current week information - always find this week's Monday
         days_back = today.weekday()
         monday = today - timedelta(days=days_back)
         monday = monday.replace(hour=0, minute=0, second=0, microsecond=0)
-        
+
         week_num = calculate_week_number(monday)
         continuous_week_num = calculate_continuous_week(monday)
 
         print("\nCrossville Church of Christ - Prayer Schedule Generator")
-        print("VERSION 10 - DESKTOP VERSION (FIXED)")
-        print("="*60)
-        print(f"Generating schedule for Week {week_num}")
-        print(f"Week of {monday.strftime('%B %d, %Y')}")
+        print("VERSION 10 - DAILY EMAIL EDITION")
+        print("=" * 60)
+        print(f"Today: {today_name}, {today.strftime('%B %d, %Y')}")
+        print(f"Week {week_num} ({monday.strftime('%B %d')} - {(monday + timedelta(days=6)).strftime('%B %d, %Y')})")
         print(f"Continuous week: {continuous_week_num} (cycle position: {(continuous_week_num - 1) % 8})")
         print(f"\nALL FILES WILL BE SAVED TO: {DESKTOP_DIR}")
 
         # Generate assignments using continuous week number to avoid
         # year-boundary discontinuities in the 8-week rotation cycle
         elder_assignments = assign_families_for_week_v10(continuous_week_num)
-        
+
         # Verify assignments
         print("\nVerifying current week assignments...")
         is_valid, issues = verify_schedule(elder_assignments)
-        
+
         if not is_valid:
             print("\n[X] VALIDATION FAILED:")
             for issue in issues:
                 print(f"  - {issue}")
             return False
-        
+
         print("[OK] All verification checks passed!")
-        
+
         # Show family counts
         print("\nFamily counts:")
         total_families_assigned = 0
@@ -1035,30 +1347,59 @@ def main():
         print(f"\nTotal families assigned this week: {total_families_assigned}")
         print(f"Elders with assignments: {len(elder_assignments)}")
 
-        # Archive previous week's schedule before generating new one
-        print("\nArchiving previous schedule...")
-        archive_previous_schedule()
+        # Show today's assignment
+        schedule = get_week_schedule(week_num)
+        todays_elders = schedule.get(today_name, [])
+        print(f"\nToday's prayer assignment ({today_name}):")
+        for elder in todays_elders:
+            families = elder_assignments.get(elder, [])
+            print(f"  {elder}: {len(families)} families")
 
-        # Generate content
-        html_content, text_content = generate_schedule_content(week_num, monday, elder_assignments)
-        
-        # Update desktop files (Current Week files)
-        print("\nUpdating current week files...")
-        if not update_desktop_files(html_content, text_content):
-            print("\n[WARNING] Some files could not be updated")
-            return False
+        if is_monday:
+            # === MONDAY: Full regeneration ===
+            print("\n--- MONDAY: Full schedule regeneration ---")
 
-        # Send email with the schedule
-        print("\nSending email...")
-        send_email_schedule(week_num, monday, text_content)
+            # Archive previous week's schedule before generating new one
+            print("\nArchiving previous schedule...")
+            archive_previous_schedule()
 
-        log_activity(f"Generated Week {week_num} schedule successfully")
+            # Generate content
+            html_content, text_content = generate_schedule_content(week_num, monday, elder_assignments)
 
-        print("\n[OK] Schedule generation complete!")
+            # Update desktop files (Current Week files)
+            print("\nUpdating current week files...")
+            if not update_desktop_files(html_content, text_content):
+                print("\n[WARNING] Some files could not be updated")
+                return False
+
+            # Send full weekly email
+            print("\nSending weekly schedule email...")
+            send_email_schedule(week_num, monday, text_content)
+
+            log_activity(f"Generated Week {week_num} schedule successfully (Monday full run)")
+        else:
+            # === TUESDAY-SUNDAY: Regenerate HTML only (for day highlighting) ===
+            print(f"\n--- {today_name.upper()}: Daily update ---")
+
+            # Regenerate HTML so the static file is up-to-date
+            html_content, text_content = generate_schedule_content(week_num, monday, elder_assignments)
+
+            print("\nUpdating current week files...")
+            if not update_desktop_files(html_content, text_content):
+                print("\n[WARNING] Some files could not be updated")
+                return False
+
+            log_activity(f"Daily update for {today_name}, Week {week_num}")
+
+        # === EVERY DAY: Send daily prayer reminder email ===
+        print(f"\nSending daily prayer reminder for {today_name}...")
+        send_daily_email(today, week_num, monday, elder_assignments)
+
+        print(f"\n[OK] {'Schedule generation' if is_monday else 'Daily update'} complete!")
         print(f"All files have been saved to: {DESKTOP_DIR}")
-        
+
         return True
-        
+
     except Exception as e:
         print(f"\n[CRITICAL ERROR] Unexpected error occurred:")
         print(f"  {str(e)}")
