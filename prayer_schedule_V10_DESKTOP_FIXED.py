@@ -100,14 +100,22 @@ RECIPIENT_EMAILS = os.environ.get('RECIPIENT_EMAILS', ','.join([
 ]))
 
 
-def get_today():
-    """Get today's date and time.
+# US Central Time offset from UTC.
+# CST (Nov-Mar) = UTC-6, CDT (Mar-Nov) = UTC-5.
+# Using -6 (CST) as the conservative default for the church's timezone.
+CENTRAL_UTC_OFFSET_HOURS = -6
 
-    Uses the system clock (datetime.now()). In GitHub Actions, the system time
-    is UTC. The cron is scheduled at 1 PM UTC (8 AM CDT / 7 AM CST), so the
-    UTC date always matches the US Central Time date at that hour.
+
+def get_today():
+    """Get today's date in US Central Time.
+
+    The server (GitHub Actions) runs in UTC. The church is in US Central Time.
+    At 2 AM UTC it is still the previous evening in Central Time, so we must
+    apply the offset to get the correct local date for the church.
     """
-    return datetime.now()
+    utc_now = datetime.utcnow()
+    central_now = utc_now + timedelta(hours=CENTRAL_UTC_OFFSET_HOURS)
+    return central_now
 
 
 def verify_email_date(today, monday):
@@ -1363,7 +1371,8 @@ def main():
         today_name = day_names[today.weekday()]
 
         log_activity(f"Starting prayer schedule system ({today_name}) (VERSION 10 - DAILY EMAIL)")
-        print(f"\n[DATE] System time: {today.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"\n[DATE] Server UTC time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"[DATE] Central Time (church local): {today.strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"[DATE] Today: {today_name}, {today.strftime('%B %d, %Y')}")
 
         # First verify the algorithm
