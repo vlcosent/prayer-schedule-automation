@@ -1,27 +1,27 @@
-name: Weekly Prayer Schedule Generation
+name: Daily Prayer Schedule Email
 
 on:
   schedule:
-    # Run every Monday at 1:00 PM UTC (8:00 AM CDT / 7:00 AM CST)
-    - cron: '0 13 * * 1'
+    # Run every day at 1:00 PM UTC (8:00 AM CDT / 7:00 AM CST)
+    - cron: '0 13 * * *'
   workflow_dispatch:  # Allow manual trigger
 
 jobs:
   generate-schedule:
     runs-on: ubuntu-latest
-    
+
     permissions:
       contents: write  # Required to push changes back to repo
-    
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-        
+
     - name: Run prayer schedule generator
       env:
         EMAIL_ENABLED: 'true'
@@ -30,15 +30,15 @@ jobs:
         RECIPIENT_EMAILS: ${{ secrets.RECIPIENT_EMAILS }}
       run: |
         python prayer_schedule_V10_DESKTOP_FIXED.py
-        
+
     - name: Commit and push generated files
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "GitHub Actions Bot"
         git add -A
-        git diff --staged --quiet || git commit -m "Auto-generate prayer schedule for week $(date +%Y-%m-%d)"
+        git diff --staged --quiet || git commit -m "Auto-generate prayer schedule for $(date +%Y-%m-%d)"
         git push || echo "No changes to push"
-        
+
     - name: Upload schedule artifacts
       uses: actions/upload-artifact@v4
       with:
