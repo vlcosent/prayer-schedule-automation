@@ -65,10 +65,21 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+    - name: Wait for push propagation
+      run: sleep 30
+
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
         ref: main
+
+    - name: Prepare site directory
+      run: |
+        mkdir _site
+        cp index.html _site/
+        cp .nojekyll _site/
+        cp Prayer_Schedule_Current_Week.html _site/ || true
+        cp Prayer_Schedule_Current_Week.txt _site/ || true
 
     - name: Setup Pages
       uses: actions/configure-pages@v5
@@ -76,7 +87,7 @@ jobs:
     - name: Upload Pages artifact
       uses: actions/upload-pages-artifact@v3
       with:
-        path: '.'
+        path: '_site'
 
     - name: Deploy to GitHub Pages
       id: deployment
