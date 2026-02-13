@@ -49,6 +49,7 @@ import re
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.utils import formatdate
 
 # ============== CONFIGURATION SECTION ==============
 # FIXED: Use expanduser to get desktop path dynamically
@@ -97,6 +98,52 @@ RECIPIENT_EMAILS = os.environ.get('RECIPIENT_EMAILS', ','.join([
     'brianmclaughlin423@gmail.com',  # Brian
     'jbw@benlomand.net',             # Jerry
 ]))
+
+
+# US Central Time offset from UTC.
+# CST (Nov-Mar) = UTC-6, CDT (Mar-Nov) = UTC-5.
+# Using -6 (CST) as the conservative default for the church's timezone.
+CENTRAL_UTC_OFFSET_HOURS = -6
+
+
+def get_today():
+    """Get today's date in US Central Time.
+
+    The server (GitHub Actions) runs in UTC. The church is in US Central Time.
+    At 2 AM UTC it is still the previous evening in Central Time, so we must
+    apply the offset to get the correct local date for the church.
+    """
+    utc_now = datetime.utcnow()
+    central_now = utc_now + timedelta(hours=CENTRAL_UTC_OFFSET_HOURS)
+    return central_now
+
+
+def verify_email_date(today, monday):
+    """Verify the email date is correct before sending.
+
+    Returns (is_valid, message) tuple. Checks:
+    1. Today falls within the Monday-Sunday week range
+    2. Today's day name matches the expected day
+    """
+    day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    today_name = day_names[today.weekday()]
+    sunday = monday + timedelta(days=6)
+
+    # Check today falls within the week
+    today_date = today.replace(hour=0, minute=0, second=0, microsecond=0)
+    if today_date < monday or today_date > sunday:
+        return False, (f"DATE MISMATCH: Today {today.strftime('%Y-%m-%d')} ({today_name}) "
+                       f"is outside week range {monday.strftime('%Y-%m-%d')} to {sunday.strftime('%Y-%m-%d')}")
+
+    # Check the day index is consistent
+    expected_offset = (today_date - monday).days
+    if expected_offset != today.weekday():
+        return False, (f"DAY MISMATCH: {today_name} offset={expected_offset} "
+                       f"but weekday()={today.weekday()}")
+
+    return True, (f"DATE VERIFIED: {today_name}, {today.strftime('%B %d, %Y')} "
+                  f"is day {expected_offset + 1}/7 of week {monday.strftime('%b %d')}-{sunday.strftime('%b %d, %Y')}")
+
 
 # Church Elders (8 total)
 ELDERS = [
@@ -1029,6 +1076,7 @@ def send_email_schedule(week_num, monday, text_content):
     """
     Send the full weekly prayer schedule via email (used on Mondays).
     Uses Gmail SMTP with credentials from environment variables.
+    Includes date verification to ensure correct date on the email.
     """
     if not EMAIL_ENABLED:
         print("   [INFO] Email is disabled (EMAIL_ENABLED not set to 'true')")
@@ -1047,6 +1095,17 @@ def send_email_schedule(week_num, monday, text_content):
             print("   [WARNING] No recipient emails configured")
             return False
 
+        # Get today's verified date
+        today = get_today()
+        today_formatted = today.strftime('%A, %B %d, %Y')
+
+        # Verify date before sending
+        date_valid, date_msg = verify_email_date(today, monday)
+        print(f"   [DATE CHECK] {date_msg}")
+        if not date_valid:
+            print("   [X] DATE VERIFICATION FAILED - not sending weekly email")
+            return False
+
         # Calculate date range
         end_date = monday + timedelta(days=6)
         date_range = f"{monday.strftime('%b %d')}-{end_date.strftime('%d, %Y')}"
@@ -1056,9 +1115,12 @@ def send_email_schedule(week_num, monday, text_content):
         msg['From'] = SENDER_EMAIL
         msg['To'] = ', '.join(recipients)
         msg['Subject'] = f"Weekly Prayer Schedule - Week {week_num} ({date_range})"
+        msg['Date'] = formatdate(localtime=True)
 
-        # Email body - include the full text schedule
+        # Email body - include the full text schedule with today's date
         email_body = f"""Greetings,
+
+Sent on: {today_formatted}
 
 Please find below the prayer schedule for Week {week_num} ({date_range}).
 
@@ -1074,6 +1136,7 @@ Crossville Church of Christ Elder Ministry
 
         # Connect to Gmail SMTP server
         print(f"   [EMAIL] Connecting to {SMTP_SERVER}:{SMTP_PORT}...")
+        print(f"   [EMAIL] Email date: {today_formatted}")
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls()  # Secure the connection
 
@@ -1087,6 +1150,7 @@ Crossville Church of Christ Elder Ministry
         server.quit()
 
         print(f"   [OK] Weekly email sent successfully to {len(recipients)} recipient(s)")
+        print(f"   [OK] Email date verified: {today_formatted}")
         return True
 
     except smtplib.SMTPAuthenticationError as e:
@@ -1106,6 +1170,7 @@ def send_daily_email(today, week_num, monday, elder_assignments):
     """
     Send a daily prayer reminder email highlighting today's elder(s) and their families.
     This is sent every day (including Monday) so each elder gets a reminder on their day.
+    Includes date verification to ensure the email date matches today's actual date.
     """
     if not EMAIL_ENABLED:
         print("   [INFO] Email is disabled (EMAIL_ENABLED not set to 'true')")
@@ -1124,9 +1189,17 @@ def send_daily_email(today, week_num, monday, elder_assignments):
             print("   [WARNING] No recipient emails configured")
             return False
 
+        # Verify the date is correct before composing the email
+        date_valid, date_msg = verify_email_date(today, monday)
+        print(f"   [DATE CHECK] {date_msg}")
+        if not date_valid:
+            print("   [X] DATE VERIFICATION FAILED - not sending daily email")
+            return False
+
         # Determine today's day name
         day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         today_name = day_names[today.weekday()]
+        today_formatted = today.strftime('%A, %B %d, %Y')
 
         # Get today's schedule
         schedule = get_week_schedule(week_num)
@@ -1147,25 +1220,26 @@ def send_daily_email(today, week_num, monday, elder_assignments):
             elder_details += "\n"
 
         elder_names = " & ".join(todays_elders)
-        today_formatted = today.strftime('%A, %B %d, %Y')
 
         # Calculate date range for subject
         end_date = monday + timedelta(days=6)
         date_range = f"{monday.strftime('%b %d')}-{end_date.strftime('%d, %Y')}"
 
-        # Create email message
+        # Create email message with verified date
         msg = MIMEMultipart()
         msg['From'] = SENDER_EMAIL
         msg['To'] = ', '.join(recipients)
-        msg['Subject'] = f"Daily Prayer Reminder - {today_name}: {elder_names} (Week {week_num})"
+        msg['Subject'] = f"Daily Prayer Reminder - {today_name}, {today.strftime('%B %d')}: {elder_names} (Week {week_num})"
+        msg['Date'] = formatdate(localtime=True)
 
-        # Email body - today's prayer focus
+        # Email body - today's prayer focus with verified date
         email_body = f"""Greetings,
 
 TODAY'S PRAYER FOCUS - {today_formatted}
 {'=' * 60}
 
-Today is {today_name} of Week {week_num} ({date_range}).
+Date: {today_formatted}
+Day: {today_name} of Week {week_num} ({date_range})
 
 Elder(s) assigned to pray today: {elder_names}
 
@@ -1174,6 +1248,7 @@ Please keep these families in your prayers today.
 
 {'=' * 60}
 This daily reminder was automatically generated by the Prayer Schedule System.
+Email sent on: {today_formatted}
 
 Blessings,
 Crossville Church of Christ Elder Ministry
@@ -1183,6 +1258,7 @@ Crossville Church of Christ Elder Ministry
 
         # Connect to Gmail SMTP server
         print(f"   [EMAIL] Connecting to {SMTP_SERVER}:{SMTP_PORT}...")
+        print(f"   [EMAIL] Email date: {today_formatted}")
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls()  # Secure the connection
 
@@ -1195,7 +1271,7 @@ Crossville Church of Christ Elder Ministry
         server.send_message(msg)
         server.quit()
 
-        print(f"   [OK] Daily email sent successfully for {today_name} to {len(recipients)} recipient(s)")
+        print(f"   [OK] Daily email sent for {today_name}, {today.strftime('%B %d, %Y')} to {len(recipients)} recipient(s)")
         return True
 
     except smtplib.SMTPAuthenticationError as e:
@@ -1289,12 +1365,15 @@ def main():
     - Always: Regenerate HTML with current-day highlighting data
     """
     try:
-        today = datetime.now()
+        today = get_today()
         is_monday = today.weekday() == 0
         day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         today_name = day_names[today.weekday()]
 
         log_activity(f"Starting prayer schedule system ({today_name}) (VERSION 10 - DAILY EMAIL)")
+        print(f"\n[DATE] Server UTC time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"[DATE] Central Time (church local): {today.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"[DATE] Today: {today_name}, {today.strftime('%B %d, %Y')}")
 
         # First verify the algorithm
         print("\nRunning algorithm verification...")
@@ -1309,6 +1388,13 @@ def main():
         days_back = today.weekday()
         monday = today - timedelta(days=days_back)
         monday = monday.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # Verify the email date is correct before proceeding
+        date_valid, date_msg = verify_email_date(today, monday)
+        print(f"\n[DATE CHECK] {date_msg}")
+        if not date_valid:
+            print("[X] DATE VERIFICATION FAILED - aborting to prevent wrong-date email")
+            return False
 
         week_num = calculate_week_number(monday)
         continuous_week_num = calculate_continuous_week(monday)
