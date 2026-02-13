@@ -6,6 +6,11 @@ on:
     - cron: '0 13 * * *'
   workflow_dispatch:  # Allow manual trigger
 
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 jobs:
   generate-schedule:
     runs-on: ubuntu-latest
@@ -49,3 +54,41 @@ jobs:
           prayer_schedule_log.txt
         retention-days: 90
         if-no-files-found: warn
+
+  deploy-pages:
+    needs: generate-schedule
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - name: Wait for push propagation
+      run: sleep 30
+
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        ref: main
+
+    - name: Prepare site directory
+      run: |
+        mkdir _site
+        cp index.html _site/
+        cp .nojekyll _site/
+        cp Prayer_Schedule_Current_Week.html _site/ || true
+        cp Prayer_Schedule_Current_Week.txt _site/ || true
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v5
+
+    - name: Upload Pages artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: '_site'
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
