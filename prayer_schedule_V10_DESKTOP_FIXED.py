@@ -33,7 +33,7 @@ FIXES APPLIED:
 9. Fixed year-boundary rotation bug: ISO week numbers reset from 52/53 to 1
    at year boundaries, causing cycle_position to jump and duplicate family
    assignments. Now uses continuous week counting from a fixed reference date.
-10. Fixed total_assignments counter to show total families (155) not elder count (8)
+10. Fixed total_assignments counter to show total families (154) not elder count (8)
 11. Added daily email automation - sends prayer reminder each day
 12. Added day-of-week highlighting on website (JavaScript-based)
 """
@@ -169,7 +169,7 @@ ELDER_FAMILIES = {
     "Larry McDuffee": "McDuffee, Larry & Linda"
 }
 
-# Church Directory CSV - All 155 families
+# Church Directory CSV - All 154 families
 DIRECTORY_CSV = """Last Name,First Names
 Allred,"Patric & Courtney; Brady Hoyt, Allie Grace"
 Austin,Shawn
@@ -219,7 +219,6 @@ Graham,Pat
 Griffies,David & Mary
 Griffin,Donna & Wendell
 Griffin,"Dylan & Julia; Eli, Noah, Isaiah"
-Gugler,Ethel
 Haga,David & Patty
 Hall,Robin
 Harris,Jimmy & Donna
@@ -398,8 +397,8 @@ def create_v10_master_pools():
 
     # FIXED: Removed unnecessary rebalancing code
     # The round-robin distribution already achieves:
-    # - Pools 0, 1 and 2: 20 families each (155 % 8 = 3, so first 3 pools get extra)
-    # - Pools 3-7: 19 families each
+    # - Pools 0 and 1: 20 families each (154 % 8 = 2, so first 2 pools get extra)
+    # - Pools 2-7: 19 families each
 
     # Sort each pool for consistency
     for pool in pools:
@@ -460,24 +459,24 @@ def assign_families_for_week_v10(week_number):
     # Second pass: Redistribute filtered families using FIXED reassignment table
     # This ensures consistency and prevents week-to-week repeats
     #
-    # Fixed reassignment mapping based on conflict analysis:
-    # - Cycle week 0 (Week 1): Kyle Fairman's family filtered
-    # - Cycle week 1 (Week 2): Frank Bohannon's and Jerry Wood's families filtered
-    # - Cycle week 2 (Week 3): Brian McLaughlin's and Larry McDuffee's families filtered
-    # - Cycle week 5 (Week 6): Jonathan Loveday's family filtered
-    # - Cycle week 7 (Week 8): Alan Judd's family filtered
+    # Fixed reassignment mapping based on conflict analysis (154 families):
+    # - Cycle week 0 (Week 1): Jerry Wood's and Kyle Fairman's families filtered
+    # - Cycle week 1 (Week 2): Brian McLaughlin's, Frank Bohannon's, and Larry McDuffee's families filtered
+    # - Cycle week 3 (Week 4): L.A. Fox's family filtered
+    # - Cycle week 4 (Week 5): Jonathan Loveday's family filtered
+    # - Cycle week 6 (Week 7): Alan Judd's family filtered
     #
     # Reassignments chosen to maintain 18-20 family balance and avoid repeats:
     # Based on analysis: assign to elders with 19 families (to reach 20) or 18 (to reach 19)
     FIXED_REASSIGNMENT_MAP = {
-        0: {"Kyle Fairman": "Jerry Wood"},           # Kyle(18) filtered → Jerry(19→20)
-        1: {"Frank Bohannon": "Jonathan Loveday",    # Frank(18) → Jonathan(19→20)
-            "Jerry Wood": "Kyle Fairman"},           # Jerry(18) → Kyle(19→20)
-        2: {"Brian McLaughlin": "Jerry Wood",        # Brian(18) → Jerry(19→20) NOT Frank (has it in cycle 1)
-            "Larry McDuffee": "Brian McLaughlin"},   # Larry(19) → Brian(18→19)
-        3: {"L.A. Fox": "Alan Judd"},                # L.A.(19) → Alan(19→20)
-        5: {"Jonathan Loveday": "Brian McLaughlin"}, # Jonathan(19) → Brian(19→20)
-        7: {"Alan Judd": "Jonathan Loveday"}         # Alan(18) → Jonathan(19→20)
+        0: {"Jerry Wood": "Kyle Fairman",            # Jerry(18) filtered -> Kyle(18->19)
+            "Kyle Fairman": "Jerry Wood"},           # Kyle(18) filtered -> Jerry(18->19)
+        1: {"Brian McLaughlin": "Jerry Wood",        # Brian(18) filtered -> Jerry(19->20)
+            "Frank Bohannon": "Jonathan Loveday",    # Frank(18) filtered -> Jonathan(19->20)
+            "Larry McDuffee": "Brian McLaughlin"},   # Larry(19) filtered -> Brian(18->19)
+        3: {"L.A. Fox": "Alan Judd"},                # L.A.(19) filtered -> Alan(19->20)
+        4: {"Jonathan Loveday": "Alan Judd"},        # Jonathan(19) filtered -> Alan(19->20)
+        6: {"Alan Judd": "Jonathan Loveday"},        # Alan(18) filtered -> Jonathan(19->20)
     }
 
     reassignment_map = FIXED_REASSIGNMENT_MAP.get(cycle_position, {})
@@ -593,7 +592,7 @@ def verify_v10_algorithm():
     extra = all_families_used - all_families
     
     if not missing and not extra:
-        print(f"   [OK] All 155 families are included in rotation")
+        print(f"   [OK] All {len(all_families)} families are included in rotation")
     else:
         if missing:
             print(f"   [X] Missing families: {missing}")
