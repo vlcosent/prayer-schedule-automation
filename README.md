@@ -1,15 +1,18 @@
 # Prayer Schedule Automation
 
-Automated weekly prayer schedule generator for Crossville Church of Christ. This system generates prayer schedules every Monday, rotating 8 elders through 155 church families with a perfect 8-week cycle.
+Automated prayer schedule generator for Crossville Church of Christ. This system runs daily, rotating 8 elders through 154 church families with a perfect 8-week cycle. Full schedules regenerate every Monday; daily prayer reminders are sent every day.
 
 ## Features
 
-- **Automatic Weekly Generation**: Runs every Monday at 1:00 PM UTC (8:00 AM CDT / 7:00 AM CST)
-- **Email Delivery**: Automatically emails schedule to 10 configured recipients
+- **Daily Automation**: Runs every day at 1:00 PM UTC (8:00 AM CDT / 7:00 AM CST)
+- **Weekly Schedule Regeneration**: Full schedule regenerated every Monday with new rotation
+- **Daily Prayer Reminders**: Each day's assigned elder(s) receive a prayer reminder email
+- **Email Delivery**: Automatically emails to 10 configured recipients
 - **Perfect Rotation**: 100% new families every week - no repeats until the 8-week cycle completes
 - **Smart Assignments**: No elder ever prays for their own family
 - **Balanced Distribution**: 18-20 families per elder for complete coverage
 - **Multiple Formats**: Generates both professional HTML and plain text schedules
+- **Day-of-Week Highlighting**: Website highlights the current day's assignment using JavaScript
 - **Dual Environment Support**: Works in both CI/CD (GitHub Actions) and local desktop environments
 - **Automatic Archive**: Previous week's schedule automatically archived with date and week number
 - **Secure Configuration**: Email credentials stored safely in GitHub Secrets
@@ -18,7 +21,7 @@ Automated weekly prayer schedule generator for Crossville Church of Christ. This
 ## System Overview
 
 ### Schedule Pattern
-- **8 Elders** rotate through **155 church families**
+- **8 Elders** rotate through **154 church families**
 - **8-week rotation cycle** ensures complete coverage
 - **Monday**: 2 elders assigned (Alan Judd & Brian McLaughlin)
 - **Tuesday-Sunday**: 1 elder per day
@@ -29,13 +32,13 @@ The system performs 5 verification checks on every run:
 2. **Elder Own Family Check**: Verifies no elder has their own family
 3. **Week-to-Week Rotation**: Confirms 100% new families each week
 4. **8-Week Cycle Check**: Validates the rotation repeats correctly
-5. **Family Coverage**: Ensures all 155 families are included
+5. **Family Coverage**: Ensures all 154 families are included
 
 ### Rotation Algorithm
 
 Families are distributed round-robin from a sorted directory into 8 pools:
 
-| Pools 0-2 | Pools 3-7 |
+| Pools 0-1 | Pools 2-7 |
 |-----------|-----------|
 | 20 families each | 19 families each |
 
@@ -48,7 +51,7 @@ The `cycle_position` advances by 1 each week, cycling through 0-7. After 8 weeks
 
 ### Elder-Own-Family Reassignment
 
-When an elder's pool contains their own family, that family is filtered out and reassigned to a different elder to maintain balanced counts (18-20 per elder). This is handled by `FIXED_REASSIGNMENT_MAP` which covers cycle positions [0, 1, 2, 3, 5, 7].
+When an elder's pool contains their own family, that family is filtered out and reassigned to a different elder to maintain balanced counts (18-20 per elder). This is handled by `FIXED_REASSIGNMENT_MAP` which covers cycle positions [0, 1, 3, 4, 6].
 
 ## Year-Boundary Fix (2026-02-06)
 
@@ -80,27 +83,33 @@ The reference date was chosen so that within 2026, `continuous_week == ISO week`
 ## Automatic Execution (GitHub Actions)
 
 ### Schedule
-The workflow automatically runs **every Monday at 1:00 PM UTC**:
-- **CST**: 7:00 AM Monday
-- **CDT**: 8:00 AM Monday
+The workflow automatically runs **every day at 1:00 PM UTC**:
+- **CST**: 7:00 AM daily
+- **CDT**: 8:00 AM daily
+
+### Daily Behavior
+- **Monday**: Full schedule regeneration + weekly email + daily prayer reminder
+- **Tuesday-Sunday**: HTML/text file refresh + daily prayer reminder email
 
 ### Workflow Process
-1. GitHub Actions triggers on schedule: `cron: '0 13 * * 1'`
+1. GitHub Actions triggers on schedule: `cron: '0 13 * * *'`
 2. Checks out repository code
 3. Sets up Python 3.11
 4. Executes prayer schedule generator
    - Runs algorithm verification (5 checks)
-   - Archives previous week's schedule
-   - Generates new schedule for current week
-   - Sends email to configured recipients
+   - Archives previous schedule (on Mondays)
+   - Generates/refreshes schedule for current week
+   - Sends daily prayer reminder email to configured recipients
+   - Sends full weekly schedule email (on Mondays)
 5. Commits generated files to repository
 6. Pushes changes to main branch
 7. Uploads artifacts (90-day retention)
+8. Deploys to GitHub Pages
 
 ### Manual Trigger
 You can also run the workflow manually:
 1. Go to **GitHub Repository** > **Actions** tab
-2. Select **"Weekly Prayer Schedule Generation"**
+2. Select **"Daily Prayer Schedule Email"**
 3. Click **"Run workflow"** button
 4. Select branch (usually main)
 5. Click **"Run workflow"** to execute
@@ -159,7 +168,8 @@ The system automatically archives previous week's schedules before generating ne
     ├── Prayer_Schedule_2026-01-26_Week4.txt
     ├── Prayer_Schedule_2026-02-02_Week5.txt
     ├── Prayer_Schedule_2026-02-06_Week6.txt
-    └── Prayer_Schedule_2026-02-09_Week6.txt  (16 files total)
+    ├── Prayer_Schedule_2026-02-09_Week6.txt
+    └── Prayer_Schedule_2026-02-16_Week7.txt  (17 files total)
 ```
 
 ### Archive File Naming
@@ -174,7 +184,7 @@ The system automatically archives previous week's schedules before generating ne
 
 ## Email Configuration
 
-The system automatically emails the prayer schedule to configured recipients each week.
+The system automatically emails prayer information to configured recipients. Daily prayer reminders are sent every day, and the full weekly schedule is emailed on Mondays.
 
 ### Email Details
 - **Sender**: `churchprayerlistelders@gmail.com`
@@ -270,12 +280,12 @@ To temporarily disable email sending:
 ### Core Files
 | File | Description | Lines |
 |------|-------------|-------|
-| `prayer_schedule_V10_DESKTOP_FIXED.py` | Main schedule generator | ~1070 |
+| `prayer_schedule_V10_DESKTOP_FIXED.py` | Main schedule generator | ~1495 |
 | `comprehensive_verification.py` | Verification test suite | ~332 |
 | `analyze_missing_coverage.py` | Coverage analysis tool | - |
 | `calc_reassignments.py` | Reassignment calculator | - |
 | `UPDATE_PRAYER_SCHEDULE_FIXED.bat` | Windows batch launcher | - |
-| `.github/workflows/weekly-schedule.yml` | GitHub Actions workflow | ~52 |
+| `.github/workflows/weekly-schedule.yml` | GitHub Actions workflow | ~96 |
 
 ### Documentation
 | File | Description |
@@ -289,12 +299,12 @@ To temporarily disable email sending:
 - **`Prayer_Schedule_Current_Week.html`** - Current week's HTML schedule
 - **`Prayer_Schedule_Current_Week.txt`** - Current week's text schedule
 - **`prayer_schedule_log.txt`** - Generation activity log
-- **`archive/`** - Directory containing 16 historical schedules
+- **`archive/`** - Directory containing 17 historical schedules
 
 ### Dependencies
 - **Python Version**: 3.11
 - **External Packages**: None - all standard library
-  - `csv`, `datetime`, `os`, `sys`, `traceback`, `shutil`, `re`, `smtplib`, `email.mime`
+  - `csv`, `io`, `datetime`, `os`, `sys`, `traceback`, `shutil`, `re`, `smtplib`, `email.mime`, `email.utils`
 
 ## Local Desktop Usage
 
@@ -351,10 +361,10 @@ is_ci = os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 't
 - **Sunday**: Larry McDuffee
 
 ### Family Distribution
-- **Total Families**: 155 from church directory
+- **Total Families**: 154 from church directory
 - **Distribution**: Round-robin across 8 pools
-  - Pools 0-2: 20 families each (60 total)
-  - Pools 3-7: 19 families each (95 total)
+  - Pools 0-1: 20 families each (40 total)
+  - Pools 2-7: 19 families each (114 total)
 - **Rotation**: Each elder gets a different pool each week
 - **Cycle**: Full rotation completes every 8 weeks
 
@@ -382,7 +392,7 @@ Location: `.github/workflows/weekly-schedule.yml`
 ```yaml
 on:
   schedule:
-    - cron: '0 13 * * 1'  # Every Monday at 1:00 PM UTC (8 AM CDT / 7 AM CST)
+    - cron: '0 13 * * *'  # Every day at 1:00 PM UTC (8 AM CDT / 7 AM CST)
   workflow_dispatch:      # Allow manual trigger
 ```
 
@@ -402,7 +412,7 @@ This tests 16 weeks of assignments and verifies:
 - No elder has own family
 - 100% new families each week
 - 8-week cycle repeats correctly
-- All 155 families covered
+- All 154 families covered
 
 ### Comprehensive Verification Suite
 Run the full test suite:
@@ -432,7 +442,7 @@ All verification checks pass:
 - Elder Own Family: Never included
 - Week Rotation: 100% new families
 - 8-Week Cycle: Perfect repetition
-- Coverage: All 155 families included
+- Coverage: All 154 families included
 - Year Boundaries: Continuous rotation across all tested boundaries
 
 ## Troubleshooting
@@ -458,20 +468,22 @@ All verification checks pass:
 ## Support & Maintenance
 
 ### Updating Church Directory
-To update the family list, edit the `DIRECTORY_CSV` constant in `prayer_schedule_V10_DESKTOP_FIXED.py`:
+To add or remove a family, edit the `DIRECTORY_CSV` constant in `prayer_schedule_V10_DESKTOP_FIXED.py`:
 ```python
 DIRECTORY_CSV = """Last Name,First Names
 ...
 """
 ```
 
+**Important**: After changing the family list, you **must** also recalculate the `FIXED_REASSIGNMENT_MAP` in the `assign_families_for_week_v10()` function. Changing the family count alters the round-robin pool distribution, which shifts which elders encounter their own family at each cycle position. The `calc_reassignments.py` utility can help with this analysis. Run `comprehensive_verification.py` after any changes to confirm all checks pass.
+
 ### Changing Elder Assignments
-Edit the `ELDERS` list and `ELDER_FAMILIES` dictionary in the configuration section.
+Edit the `ELDERS` list and `ELDER_FAMILIES` dictionary in the configuration section. The `FIXED_REASSIGNMENT_MAP` must also be recalculated when elder assignments change.
 
 ### Modifying Schedule Times
 To change when the workflow runs, edit the cron expression in `.github/workflows/weekly-schedule.yml`:
 ```yaml
-- cron: '0 6 * * 1'  # minute hour day month day-of-week
+- cron: '0 13 * * *'  # minute hour day month day-of-week (currently daily at 1 PM UTC)
 ```
 
 ## Version History
@@ -486,7 +498,9 @@ To change when the workflow runs, edit the cron expression in `.github/workflows
 7. Added secure email delivery (Gmail SMTP)
 8. Added automatic schedule archiving
 9. **Fixed year-boundary rotation bug** (2026-02-06): ISO week numbers reset from 52/53 to 1 at year boundaries, causing `cycle_position` to jump and duplicate family assignments. Fixed with continuous week counting from a fixed reference date (`REFERENCE_MONDAY = Dec 29, 2025`).
-10. **Fixed total_assignments counter** (2026-02-06): Previously counted elders (always 8) instead of total families (155). Now correctly sums family counts across all elders.
+10. **Fixed total_assignments counter** (2026-02-06): Previously counted elders (always 8) instead of total families (154). Now correctly sums family counts across all elders.
+11. Added daily email automation - sends prayer reminder each day to all recipients
+12. Added day-of-week highlighting on website (JavaScript-based navigation bar)
 
 ### Previous Versions
 - Version 9 and earlier: Desktop-only implementations
@@ -510,7 +524,7 @@ To change when the workflow runs, edit the cron expression in `.github/workflows
 
 2. **Manual Generation**:
    - Go to Actions tab on GitHub
-   - Select "Weekly Prayer Schedule Generation"
+   - Select "Daily Prayer Schedule Email"
    - Click "Run workflow"
 
 3. **Local Execution** (Windows):
@@ -544,4 +558,4 @@ To change when the workflow runs, edit the cron expression in `.github/workflows
 ---
 
 **Status**: Fully Operational
-**Next Scheduled Run**: Every Monday at 1:00 PM UTC (8:00 AM CDT / 7:00 AM CST)
+**Next Scheduled Run**: Every day at 1:00 PM UTC (8:00 AM CDT / 7:00 AM CST)

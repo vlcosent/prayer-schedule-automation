@@ -35,8 +35,8 @@ The prayer schedule automation system has been thoroughly verified and **all cri
 ## Verification Results
 
 ### ✅ Complete Coverage (100%)
-- **Total Families:** 155
-- **Families Assigned Every Week:** 155 (100.0%)
+- **Total Families:** 154
+- **Families Assigned Every Week:** 154 (100.0%)
 - **Missing Families:** 0
 - **Extra Families:** 0
 - **Duplicates:** 0
@@ -156,7 +156,7 @@ Created `comprehensive_verification.py` that tests:
 
 1. **Complete Coverage Rule** ✅
    - Every church member must be prayed for every week
-   - **Result:** 100% coverage (155/155 families)
+   - **Result:** 100% coverage (154/154 families)
 
 2. **No Self-Prayer Rule** ✅
    - No elder may pray for their own family
