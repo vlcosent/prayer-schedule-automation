@@ -1,6 +1,6 @@
 # Prayer Schedule Automation
 
-Automated weekly prayer schedule generator for Crossville Church of Christ. This system generates prayer schedules every Monday, rotating 8 elders through 155 church families with a perfect 8-week cycle.
+Automated weekly prayer schedule generator for Crossville Church of Christ. This system generates prayer schedules every Monday, rotating 8 elders through 154 church families with a perfect 8-week cycle.
 
 ## Features
 
@@ -18,7 +18,7 @@ Automated weekly prayer schedule generator for Crossville Church of Christ. This
 ## System Overview
 
 ### Schedule Pattern
-- **8 Elders** rotate through **155 church families**
+- **8 Elders** rotate through **154 church families**
 - **8-week rotation cycle** ensures complete coverage
 - **Monday**: 2 elders assigned (Alan Judd & Brian McLaughlin)
 - **Tuesday-Sunday**: 1 elder per day
@@ -29,13 +29,13 @@ The system performs 5 verification checks on every run:
 2. **Elder Own Family Check**: Verifies no elder has their own family
 3. **Week-to-Week Rotation**: Confirms 100% new families each week
 4. **8-Week Cycle Check**: Validates the rotation repeats correctly
-5. **Family Coverage**: Ensures all 155 families are included
+5. **Family Coverage**: Ensures all 154 families are included
 
 ### Rotation Algorithm
 
 Families are distributed round-robin from a sorted directory into 8 pools:
 
-| Pools 0-2 | Pools 3-7 |
+| Pools 0-1 | Pools 2-7 |
 |-----------|-----------|
 | 20 families each | 19 families each |
 
@@ -48,7 +48,7 @@ The `cycle_position` advances by 1 each week, cycling through 0-7. After 8 weeks
 
 ### Elder-Own-Family Reassignment
 
-When an elder's pool contains their own family, that family is filtered out and reassigned to a different elder to maintain balanced counts (18-20 per elder). This is handled by `FIXED_REASSIGNMENT_MAP` which covers cycle positions [0, 1, 2, 3, 5, 7].
+When an elder's pool contains their own family, that family is filtered out and reassigned to a different elder to maintain balanced counts (18-20 per elder). This is handled by `FIXED_REASSIGNMENT_MAP` which covers cycle positions [0, 1, 3, 4, 6].
 
 ## Year-Boundary Fix (2026-02-06)
 
@@ -351,10 +351,10 @@ is_ci = os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 't
 - **Sunday**: Larry McDuffee
 
 ### Family Distribution
-- **Total Families**: 155 from church directory
+- **Total Families**: 154 from church directory
 - **Distribution**: Round-robin across 8 pools
-  - Pools 0-2: 20 families each (60 total)
-  - Pools 3-7: 19 families each (95 total)
+  - Pools 0-1: 20 families each (40 total)
+  - Pools 2-7: 19 families each (114 total)
 - **Rotation**: Each elder gets a different pool each week
 - **Cycle**: Full rotation completes every 8 weeks
 
@@ -402,7 +402,7 @@ This tests 16 weeks of assignments and verifies:
 - No elder has own family
 - 100% new families each week
 - 8-week cycle repeats correctly
-- All 155 families covered
+- All 154 families covered
 
 ### Comprehensive Verification Suite
 Run the full test suite:
@@ -432,7 +432,7 @@ All verification checks pass:
 - Elder Own Family: Never included
 - Week Rotation: 100% new families
 - 8-Week Cycle: Perfect repetition
-- Coverage: All 155 families included
+- Coverage: All 154 families included
 - Year Boundaries: Continuous rotation across all tested boundaries
 
 ## Troubleshooting
@@ -486,7 +486,7 @@ To change when the workflow runs, edit the cron expression in `.github/workflows
 7. Added secure email delivery (Gmail SMTP)
 8. Added automatic schedule archiving
 9. **Fixed year-boundary rotation bug** (2026-02-06): ISO week numbers reset from 52/53 to 1 at year boundaries, causing `cycle_position` to jump and duplicate family assignments. Fixed with continuous week counting from a fixed reference date (`REFERENCE_MONDAY = Dec 29, 2025`).
-10. **Fixed total_assignments counter** (2026-02-06): Previously counted elders (always 8) instead of total families (155). Now correctly sums family counts across all elders.
+10. **Fixed total_assignments counter** (2026-02-06): Previously counted elders (always 8) instead of total families (154). Now correctly sums family counts across all elders.
 
 ### Previous Versions
 - Version 9 and earlier: Desktop-only implementations

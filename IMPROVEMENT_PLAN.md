@@ -27,7 +27,7 @@ Below is a prioritized, actionable improvement plan organized by severity.
 **Category:** Security | **Files:** Multiple
 
 The repository currently tracks files containing real personal information:
-- `Prayer_Schedule_Current_Week.txt` and `.html` contain **155 family names** with spouse/children details
+- `Prayer_Schedule_Current_Week.txt` and `.html` contain **154 family names** with spouse/children details
 - `archive/` directory contains **multiple weeks** of historical schedules with the same data
 - **Lines 75-86** of the main script hard-code **8 real personal email addresses** as fallback defaults
 
@@ -133,7 +133,7 @@ The only "testing" is `verify_v10_algorithm()` which runs inside production code
 
 ---
 
-### 7. Embedded 155-Family CSV Should Be Externalized
+### 7. Embedded 154-Family CSV Should Be Externalized
 **Category:** Architecture | **File:** `prayer_schedule_V10_DESKTOP_FIXED.py` lines 113-268
 
 The complete church directory is a 156-line string literal embedded in the Python source code. Adding/removing a family requires editing Python source.
@@ -330,7 +330,7 @@ The pool creation, rotation, and reassignment map all assume exactly 8 elders. I
 ### 22. Misleading `total_assignments` Variable
 **File:** `prayer_schedule_V10_DESKTOP_FIXED.py` lines 1000-1003
 
-Counts elders (always 8) but name implies it counts family assignments (should be ~155).
+Counts elders (always 8) but name implies it counts family assignments (should be ~154).
 
 **Action Items:**
 - [ ] Rename to `num_elders` or change to sum family counts
