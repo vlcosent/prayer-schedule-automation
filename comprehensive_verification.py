@@ -145,9 +145,9 @@ def verify_complete_coverage():
         for elder, families in families_per_elder.items():
             count = len(families)
             total_assigned += count
-            status = "✅" if 18 <= count <= 20 else "❌"
+            status = "✅" if 19 <= count <= 21 else "❌"
             print(f"      {status} {elder}: {count} families")
-            if count < 18 or count > 20:
+            if count < 19 or count > 21:
                 all_tests_passed = False
 
         # Summary for this week
