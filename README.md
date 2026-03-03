@@ -1,6 +1,6 @@
 # Prayer Schedule Automation
 
-Automated prayer schedule generator for Crossville Church of Christ. This system runs daily, rotating 8 elders through 154 church families with a perfect 8-week cycle. Full schedules regenerate every Monday; daily prayer reminders are sent every day.
+Automated prayer schedule generator for Crossville Church of Christ. This system runs daily, rotating 8 elders through 161 church families with a perfect 8-week cycle. Full schedules regenerate every Monday; daily prayer reminders are sent every day.
 
 ## Features
 
@@ -10,7 +10,7 @@ Automated prayer schedule generator for Crossville Church of Christ. This system
 - **Email Delivery**: Automatically emails to 10 configured recipients
 - **Perfect Rotation**: 100% new families every week - no repeats until the 8-week cycle completes
 - **Smart Assignments**: No elder ever prays for their own family
-- **Balanced Distribution**: 18-20 families per elder for complete coverage
+- **Balanced Distribution**: 19-21 families per elder for complete coverage
 - **Multiple Formats**: Generates both professional HTML and plain text schedules
 - **Day-of-Week Highlighting**: Website highlights the current day's assignment using JavaScript
 - **Dual Environment Support**: Works in both CI/CD (GitHub Actions) and local desktop environments
@@ -21,26 +21,26 @@ Automated prayer schedule generator for Crossville Church of Christ. This system
 ## System Overview
 
 ### Schedule Pattern
-- **8 Elders** rotate through **154 church families**
+- **8 Elders** rotate through **161 church families**
 - **8-week rotation cycle** ensures complete coverage
 - **Monday**: 2 elders assigned (Alan Judd & Brian McLaughlin)
 - **Tuesday-Sunday**: 1 elder per day
 
 ### Algorithm Verification
 The system performs 5 verification checks on every run:
-1. **Family Count Check**: Ensures 18-20 families per elder
+1. **Family Count Check**: Ensures 19-21 families per elder
 2. **Elder Own Family Check**: Verifies no elder has their own family
 3. **Week-to-Week Rotation**: Confirms 100% new families each week
 4. **8-Week Cycle Check**: Validates the rotation repeats correctly
-5. **Family Coverage**: Ensures all 154 families are included
+5. **Family Coverage**: Ensures all 161 families are included
 
 ### Rotation Algorithm
 
 Families are distributed round-robin from a sorted directory into 8 pools:
 
-| Pools 0-1 | Pools 2-7 |
-|-----------|-----------|
-| 20 families each | 19 families each |
+| Pool 0 | Pools 1-7 |
+|--------|-----------|
+| 21 families | 20 families each |
 
 Each week, every elder is assigned a different pool via:
 ```
@@ -51,7 +51,7 @@ The `cycle_position` advances by 1 each week, cycling through 0-7. After 8 weeks
 
 ### Elder-Own-Family Reassignment
 
-When an elder's pool contains their own family, that family is filtered out and reassigned to a different elder to maintain balanced counts (18-20 per elder). This is handled by `FIXED_REASSIGNMENT_MAP` which covers cycle positions [0, 1, 3, 4, 6].
+When an elder's pool contains their own family, that family is filtered out and reassigned to a different elder to maintain balanced counts (19-21 per elder). Each reassignment target is verified as "adjacency-safe" — the reassigned family does not appear in the target elder's pool in either the preceding or following cycle week, preventing week-to-week repeats. This is handled by `FIXED_REASSIGNMENT_MAP` which covers cycle positions [1, 4, 5, 6, 7].
 
 ## Year-Boundary Fix (2026-02-06)
 
@@ -79,6 +79,47 @@ The reference date was chosen so that within 2026, `continuous_week == ISO week`
 - All cycle positions advance by exactly 1 each week
 - Zero family overlap between any consecutive weeks
 - 2026 ISO week alignment confirmed for all 53 weeks
+
+## Directory Update (2026-03-03)
+
+### Overview
+Cross-referenced the church's running list of baptisms, deaths, and new members placing membership (October 2024 through February 2026) against the prayer schedule directory. Updated the directory from **154 to 161 families**.
+
+### Deaths Verified
+All 70+ death/sympathy entries were checked against the directory:
+
+| Deceased | Action | Reason |
+|----------|--------|--------|
+| Hazel Smith (Dec 3, 2025) | **Removed** | Sole member, deceased |
+| Phil Jenkins (Aug 13, 2025) | **Updated** to `Jenkins, Miriam` | Phil deceased; surviving spouse Miriam remains |
+
+All other deceased were either not in the directory (relatives, former members, non-members) or the surviving family member's entry remains unchanged (e.g., Ginny Rothery stays after Tom's passing; Gail Comer stays after Darrell's passing; Linda O'Guin stays after Gary's passing).
+
+### New Members Added (Placed Membership)
+| Name(s) | Date | Notes |
+|---------|------|-------|
+| Parham, Jordan | Aug 13, 2025 | Placed membership |
+| Weathers, Barry & Nancy | Oct 22, 2025 | Placed membership |
+| Pritt, Scott & Kellee | Dec 17, 2025 | Placed membership |
+| Pritt, Judy | Dec 17, 2025 | Scott's mother; separate entry |
+| Young, Scott | Feb 18, 2026 | Placed membership |
+
+Already in directory (no action needed): Nathan & Sara Reed, Lisa Rose, Gail Davis, Harold & Arlene Brown.
+
+### Baptisms Added
+| Name | Date | Notes |
+|------|------|-------|
+| Fawehinmi, Ethan | Oct 22, 2025 | Baptized at Crossville church of Christ |
+| Hawn, Daniel | Feb 18, 2026 | Baptized |
+| Edwards, Emily | Feb 22, 2026 | Baptized |
+
+Already in directory as part of existing family entries: Emily Keck (Keck family), Reid Martin (Martin family).
+
+### Algorithm Recalculation
+- **Pool distribution changed**: Pool 0 = 21 families, Pools 1-7 = 20 each (was: Pools 0-1 = 20, Pools 2-7 = 19)
+- **Valid family range**: 19-21 per elder (was 18-20)
+- **Reassignment table rebuilt**: Conflict weeks shifted from [0, 1, 3, 4, 6] to [1, 4, 5, 6, 7]; all targets verified adjacency-safe
+- **All verification tests pass**: 100% new families every week, no elder prays for own family, perfect 8-week cycle, all 161 families covered
 
 ## Automatic Execution (GitHub Actions)
 
@@ -361,10 +402,10 @@ is_ci = os.environ.get('CI') == 'true' or os.environ.get('GITHUB_ACTIONS') == 't
 - **Sunday**: Larry McDuffee
 
 ### Family Distribution
-- **Total Families**: 154 from church directory
+- **Total Families**: 161 from church directory
 - **Distribution**: Round-robin across 8 pools
-  - Pools 0-1: 20 families each (40 total)
-  - Pools 2-7: 19 families each (114 total)
+  - Pool 0: 21 families (161 % 8 = 1, so first pool gets the extra)
+  - Pools 1-7: 20 families each (140 total)
 - **Rotation**: Each elder gets a different pool each week
 - **Cycle**: Full rotation completes every 8 weeks
 
@@ -408,11 +449,11 @@ verify_v10_algorithm()
 ```
 
 This tests 16 weeks of assignments and verifies:
-- Correct family counts (18-20 per elder)
+- Correct family counts (19-21 per elder)
 - No elder has own family
 - 100% new families each week
 - 8-week cycle repeats correctly
-- All 154 families covered
+- All 161 families covered
 
 ### Comprehensive Verification Suite
 Run the full test suite:
@@ -438,11 +479,11 @@ This performs two sets of tests:
 
 ### Test Results
 All verification checks pass:
-- Family Count: 18-20 per elder
+- Family Count: 19-21 per elder
 - Elder Own Family: Never included
 - Week Rotation: 100% new families
 - 8-Week Cycle: Perfect repetition
-- Coverage: All 154 families included
+- Coverage: All 161 families included
 - Year Boundaries: Continuous rotation across all tested boundaries
 
 ## Troubleshooting
@@ -475,7 +516,13 @@ DIRECTORY_CSV = """Last Name,First Names
 """
 ```
 
-**Important**: After changing the family list, you **must** also recalculate the `FIXED_REASSIGNMENT_MAP` in the `assign_families_for_week_v10()` function. Changing the family count alters the round-robin pool distribution, which shifts which elders encounter their own family at each cycle position. The `calc_reassignments.py` utility can help with this analysis. Run `comprehensive_verification.py` after any changes to confirm all checks pass.
+**Important**: After changing the family list, you **must** also:
+1. Recalculate the `FIXED_REASSIGNMENT_MAP` in the `assign_families_for_week_v10()` function — changing the family count alters the round-robin pool distribution, which shifts which elders encounter their own family at each cycle position.
+2. Verify each reassignment target is **adjacency-safe** — the reassigned family must not appear in the target elder's pool in either the preceding or following cycle week, otherwise it will cause week-to-week repeats.
+3. Update the valid family count range in verification checks if pool sizes change.
+4. Update comments referencing the old family count throughout the file.
+
+The `calc_reassignments.py` utility helps identify conflicts and safe targets. Run `comprehensive_verification.py` after any changes to confirm all checks pass.
 
 ### Changing Elder Assignments
 Edit the `ELDERS` list and `ELDER_FAMILIES` dictionary in the configuration section. The `FIXED_REASSIGNMENT_MAP` must also be recalculated when elder assignments change.
@@ -501,6 +548,7 @@ To change when the workflow runs, edit the cron expression in `.github/workflows
 10. **Fixed total_assignments counter** (2026-02-06): Previously counted elders (always 8) instead of total families (154). Now correctly sums family counts across all elders.
 11. Added daily email automation - sends prayer reminder each day to all recipients
 12. Added day-of-week highlighting on website (JavaScript-based navigation bar)
+13. **Church directory update** (2026-03-03): Cross-referenced deaths, baptisms, and new membership records (Oct 2024 - Feb 2026) against the prayer directory. Updated from 154 to 161 families. See [Directory Update (2026-03-03)](#directory-update-2026-03-03) for full details.
 
 ### Previous Versions
 - Version 9 and earlier: Desktop-only implementations
