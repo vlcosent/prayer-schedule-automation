@@ -68,13 +68,19 @@ jobs:
         retention-days: 90
         if-no-files-found: warn
 
-    - name: Create issue on failure
+    - name: Create or update issue on failure
       if: failure() && github.event_name == 'schedule'
       run: |
-        gh issue create \
-          --title "Prayer schedule generation failed on $(date +%Y-%m-%d)" \
-          --body "The daily prayer schedule workflow failed. Please check the [workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details." \
-          --label "bug"
+        existing=$(gh issue list --label "bug" --state open --search "Prayer schedule generation failed" --json number -q '.[0].number' 2>/dev/null || true)
+        if [ -z "$existing" ]; then
+          gh issue create \
+            --title "Prayer schedule generation failed on $(date +%Y-%m-%d)" \
+            --body "The daily prayer schedule workflow failed. Please check the [workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details." \
+            --label "bug"
+        else
+          gh issue comment "$existing" \
+            --body "Still failing as of $(date +%Y-%m-%d). [Workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+        fi
       env:
         GH_TOKEN: ${{ github.token }}
 

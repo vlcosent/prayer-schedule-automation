@@ -100,55 +100,19 @@ RECIPIENT_EMAILS = os.environ.get('RECIPIENT_EMAILS', ','.join([
 ]))
 
 
-# US Central Time offset from UTC.
-# CST (Nov-Mar) = UTC-6, CDT (Mar-Nov) = UTC-5.
-# We compute the correct offset dynamically based on US DST rules.
-
-
-def _is_dst_us_central(dt):
-    """Check if a UTC datetime falls within US Central Daylight Time.
-
-    US DST rule (since 2007): starts 2nd Sunday of March at 2:00 AM local
-    (= 8:00 AM UTC for CST), ends 1st Sunday of November at 2:00 AM local
-    (= 7:00 AM UTC for CDT).
-
-    We use a conservative approach: compute the DST transitions in UTC
-    and compare against the UTC time.
-    """
-    year = dt.year
-
-    # 2nd Sunday of March: find March 1 weekday, then advance to 2nd Sunday
-    mar1 = datetime(year, 3, 1)
-    # days until Sunday (6 - weekday where Monday=0)
-    days_to_sun = (6 - mar1.weekday()) % 7
-    first_sun_mar = mar1 + timedelta(days=days_to_sun)
-    second_sun_mar = first_sun_mar + timedelta(days=7)
-    # DST starts at 2 AM CST = 8 AM UTC
-    dst_start_utc = second_sun_mar.replace(hour=8)
-
-    # 1st Sunday of November
-    nov1 = datetime(year, 11, 1)
-    days_to_sun = (6 - nov1.weekday()) % 7
-    first_sun_nov = nov1 + timedelta(days=days_to_sun)
-    # DST ends at 2 AM CDT = 7 AM UTC
-    dst_end_utc = first_sun_nov.replace(hour=7)
-
-    return dst_start_utc <= dt < dst_end_utc
+# US Central Time via IANA timezone database (stdlib since Python 3.9).
+# Automatically handles CST (UTC-6) and CDT (UTC-5) transitions.
+from zoneinfo import ZoneInfo
+CENTRAL_TZ = ZoneInfo("America/Chicago")
 
 
 def get_today():
-    """Get today's date in US Central Time.
+    """Get current date/time in US Central Time.
 
-    The server (GitHub Actions) runs in UTC. The church is in US Central Time.
-    At 2 AM UTC it is still the previous evening in Central Time, so we must
-    apply the offset to get the correct local date for the church.
-
-    Automatically accounts for CDT (UTC-5) vs CST (UTC-6) using US DST rules.
+    Uses the IANA timezone database so DST transitions are always correct,
+    even if US rules change in the future (via tzdata updates).
     """
-    utc_now = datetime.utcnow()
-    offset_hours = -5 if _is_dst_us_central(utc_now) else -6
-    central_now = utc_now + timedelta(hours=offset_hours)
-    return central_now
+    return datetime.now(CENTRAL_TZ)
 
 
 def verify_email_date(today, monday):
@@ -401,7 +365,7 @@ def calculate_week_number(date):
 # continuous week numbers match ISO week numbers exactly. This avoids the
 # bug where ISO week numbers reset from 52 (or 53) to 1 at year boundaries,
 # which caused cycle_position discontinuities and duplicate family assignments.
-REFERENCE_MONDAY = datetime(2025, 12, 29)
+REFERENCE_MONDAY = datetime(2025, 12, 29, tzinfo=CENTRAL_TZ)
 
 def calculate_continuous_week(monday_date):
     """Calculate a continuous week number that never resets at year boundaries.
@@ -416,7 +380,11 @@ def calculate_continuous_week(monday_date):
     equals the ISO week number, maintaining identical behavior to the old code
     within the current year while fixing the year-boundary problem.
     """
-    days_diff = (monday_date - REFERENCE_MONDAY).days
+    # Strip timezone info for arithmetic so callers can pass either
+    # naive or aware datetimes (e.g., verification tests use naive dates).
+    ref = REFERENCE_MONDAY.replace(tzinfo=None)
+    md = monday_date.replace(tzinfo=None) if monday_date.tzinfo else monday_date
+    days_diff = (md - ref).days
     return (days_diff // 7) + 1  # 1-based to match ISO week convention
 
 def create_v10_master_pools():
@@ -1104,7 +1072,7 @@ def archive_previous_schedule():
         print(f"   [INFO] No previous schedule to archive (first run or file doesn't exist)")
         return False
 
-def send_email_schedule(week_num, monday, text_content):
+def send_email_schedule(week_num, monday, text_content, today=None):
     """
     Send the full weekly prayer schedule via email (used on Mondays).
     Uses Gmail SMTP with credentials from environment variables.
@@ -1127,8 +1095,9 @@ def send_email_schedule(week_num, monday, text_content):
             print("   [WARNING] No recipient emails configured")
             return False
 
-        # Get today's verified date
-        today = get_today()
+        # Use caller's today to avoid time drift between main() and email send
+        if today is None:
+            today = get_today()
         today_formatted = today.strftime('%A, %B %d, %Y')
 
         # Verify date before sending
@@ -1476,10 +1445,13 @@ def main():
                 return False
 
             # Send full weekly email
-            print("\nSending weekly schedule email...")
-            weekly_email_ok = send_email_schedule(week_num, monday, text_content)
-            if not weekly_email_ok:
-                print("   [WARNING] Weekly email delivery failed - schedule files were still saved")
+            if EMAIL_ENABLED:
+                print("\nSending weekly schedule email...")
+                weekly_email_ok = send_email_schedule(week_num, monday, text_content, today=today)
+                if not weekly_email_ok:
+                    print("   [WARNING] Weekly email delivery failed - schedule files were still saved")
+            else:
+                print("\nEmail delivery is disabled (set EMAIL_ENABLED=true to send)")
 
             log_activity(f"Generated Week {week_num} schedule successfully (Monday full run)")
         else:
@@ -1497,10 +1469,11 @@ def main():
             log_activity(f"Daily update for {today_name}, Week {week_num}")
 
         # === EVERY DAY: Send daily prayer reminder email ===
-        print(f"\nSending daily prayer reminder for {today_name}...")
-        daily_email_ok = send_daily_email(today, week_num, monday, elder_assignments)
-        if not daily_email_ok:
-            print("   [WARNING] Daily email delivery failed")
+        if EMAIL_ENABLED:
+            print(f"\nSending daily prayer reminder for {today_name}...")
+            daily_email_ok = send_daily_email(today, week_num, monday, elder_assignments)
+            if not daily_email_ok:
+                print("   [WARNING] Daily email delivery failed")
 
         print(f"\n[OK] {'Schedule generation' if is_monday else 'Daily update'} complete!")
         print(f"All files have been saved to: {DESKTOP_DIR}")

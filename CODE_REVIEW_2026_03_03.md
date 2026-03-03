@@ -43,8 +43,8 @@ so actually safe at the current 1 PM UTC schedule). However, the comment says "C
 depend on `get_today()`. A wrong date would cause date verification to fail and
 block email sending entirely (a safe failure mode, but still a service outage).
 
-**Fix:** Replace fixed offset with DST-aware calculation using `datetime.timezone`
-and a simple DST rule, keeping stdlib-only (no pytz dependency).
+**Fix:** Replace with `zoneinfo.ZoneInfo("America/Chicago")` from Python 3.9+ stdlib.
+Uses IANA timezone database -- automatically correct, even if US DST rules change.
 
 ---
 
