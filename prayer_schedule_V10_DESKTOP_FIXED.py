@@ -72,7 +72,7 @@ try:
                 # If still no desktop found, use current directory
                 DESKTOP_DIR = os.getcwd()
                 print(f"Warning: Could not find desktop, using current directory: {DESKTOP_DIR}")
-except:
+except Exception:
     # Ultimate fallback
     DESKTOP_DIR = os.getcwd()
     print(f"Warning: Could not find desktop, using current directory: {DESKTOP_DIR}")
@@ -102,8 +102,38 @@ RECIPIENT_EMAILS = os.environ.get('RECIPIENT_EMAILS', ','.join([
 
 # US Central Time offset from UTC.
 # CST (Nov-Mar) = UTC-6, CDT (Mar-Nov) = UTC-5.
-# Using -6 (CST) as the conservative default for the church's timezone.
-CENTRAL_UTC_OFFSET_HOURS = -6
+# We compute the correct offset dynamically based on US DST rules.
+
+
+def _is_dst_us_central(dt):
+    """Check if a UTC datetime falls within US Central Daylight Time.
+
+    US DST rule (since 2007): starts 2nd Sunday of March at 2:00 AM local
+    (= 8:00 AM UTC for CST), ends 1st Sunday of November at 2:00 AM local
+    (= 7:00 AM UTC for CDT).
+
+    We use a conservative approach: compute the DST transitions in UTC
+    and compare against the UTC time.
+    """
+    year = dt.year
+
+    # 2nd Sunday of March: find March 1 weekday, then advance to 2nd Sunday
+    mar1 = datetime(year, 3, 1)
+    # days until Sunday (6 - weekday where Monday=0)
+    days_to_sun = (6 - mar1.weekday()) % 7
+    first_sun_mar = mar1 + timedelta(days=days_to_sun)
+    second_sun_mar = first_sun_mar + timedelta(days=7)
+    # DST starts at 2 AM CST = 8 AM UTC
+    dst_start_utc = second_sun_mar.replace(hour=8)
+
+    # 1st Sunday of November
+    nov1 = datetime(year, 11, 1)
+    days_to_sun = (6 - nov1.weekday()) % 7
+    first_sun_nov = nov1 + timedelta(days=days_to_sun)
+    # DST ends at 2 AM CDT = 7 AM UTC
+    dst_end_utc = first_sun_nov.replace(hour=7)
+
+    return dst_start_utc <= dt < dst_end_utc
 
 
 def get_today():
@@ -112,9 +142,12 @@ def get_today():
     The server (GitHub Actions) runs in UTC. The church is in US Central Time.
     At 2 AM UTC it is still the previous evening in Central Time, so we must
     apply the offset to get the correct local date for the church.
+
+    Automatically accounts for CDT (UTC-5) vs CST (UTC-6) using US DST rules.
     """
     utc_now = datetime.utcnow()
-    central_now = utc_now + timedelta(hours=CENTRAL_UTC_OFFSET_HOURS)
+    offset_hours = -5 if _is_dst_us_central(utc_now) else -6
+    central_now = utc_now + timedelta(hours=offset_hours)
     return central_now
 
 
@@ -619,10 +652,11 @@ def generate_schedule_content(week_number, start_date, elder_assignments):
     
     # HTML version for desktop - Professional style with FIXED ENCODING
     html = f"""<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>Prayer Schedule - Week {week_number}</title>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="refresh" content="3600">
     <style>
         body {{
@@ -861,9 +895,9 @@ def generate_schedule_content(week_number, start_date, elder_assignments):
             <h2>This Week's Prayer Schedule</h2>
             <table class="schedule-table">
                 <tr>
-                    <th>Day</th>
-                    <th>Date</th>
-                    <th>Elder(s) Assigned</th>
+                    <th scope="col">Day</th>
+                    <th scope="col">Date</th>
+                    <th scope="col">Elder(s) Assigned</th>
                 </tr>
     """
     
@@ -1303,8 +1337,8 @@ def log_activity(message):
         log_file = os.path.join(DESKTOP_DIR, "prayer_schedule_log.txt")
         with open(log_file, 'a', encoding='utf-8') as f:
             f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
-    except:
-        pass  # Silent fail for logging
+    except Exception as e:
+        print(f"   [WARNING] Logging failed: {e}", file=sys.stderr)
 
 def verify_schedule(assignments):
     """Verify the schedule meets requirements"""
@@ -1443,7 +1477,9 @@ def main():
 
             # Send full weekly email
             print("\nSending weekly schedule email...")
-            send_email_schedule(week_num, monday, text_content)
+            weekly_email_ok = send_email_schedule(week_num, monday, text_content)
+            if not weekly_email_ok:
+                print("   [WARNING] Weekly email delivery failed - schedule files were still saved")
 
             log_activity(f"Generated Week {week_num} schedule successfully (Monday full run)")
         else:
@@ -1462,7 +1498,9 @@ def main():
 
         # === EVERY DAY: Send daily prayer reminder email ===
         print(f"\nSending daily prayer reminder for {today_name}...")
-        send_daily_email(today, week_num, monday, elder_assignments)
+        daily_email_ok = send_daily_email(today, week_num, monday, elder_assignments)
+        if not daily_email_ok:
+            print("   [WARNING] Daily email delivery failed")
 
         print(f"\n[OK] {'Schedule generation' if is_monday else 'Daily update'} complete!")
         print(f"All files have been saved to: {DESKTOP_DIR}")

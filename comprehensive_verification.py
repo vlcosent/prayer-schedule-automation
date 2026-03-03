@@ -15,7 +15,8 @@ from datetime import datetime, timedelta
 
 # Import configuration from main script
 import sys
-sys.path.insert(0, '/home/user/prayer-schedule-automation')
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from prayer_schedule_V10_DESKTOP_FIXED import (
     ELDERS, ELDER_FAMILIES, parse_directory,
     assign_families_for_week_v10, get_master_pools,
@@ -325,7 +326,7 @@ def verify_year_boundary():
 
 if __name__ == "__main__":
     import os
-    os.chdir('/home/user/prayer-schedule-automation')
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
     success1 = verify_complete_coverage()
     success2 = verify_year_boundary()

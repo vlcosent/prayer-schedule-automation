@@ -3,7 +3,8 @@ Analyze which elder families are in which pools to understand the coverage issue
 """
 
 import sys
-sys.path.insert(0, '/home/user/prayer-schedule-automation')
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from prayer_schedule_V10_DESKTOP_FIXED import (
     ELDERS, ELDER_FAMILIES, get_master_pools, assign_families_for_week_v10

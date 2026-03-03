@@ -2,7 +2,8 @@
 Calculate optimal reassignments that maintain 18-20 family balance
 """
 import sys
-sys.path.insert(0, '/home/user/prayer-schedule-automation')
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from prayer_schedule_V10_DESKTOP_FIXED import ELDERS, ELDER_FAMILIES, get_master_pools
 

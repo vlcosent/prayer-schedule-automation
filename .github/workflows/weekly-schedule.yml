@@ -4,12 +4,22 @@ on:
   schedule:
     # Run every day at 1:00 PM UTC (8:00 AM CDT / 7:00 AM CST)
     - cron: '0 13 * * *'
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      send_emails:
+        description: 'Send real emails (set to false for preview/testing)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 permissions:
   contents: write
   pages: write
   id-token: write
+  issues: write
 
 jobs:
   generate-schedule:
@@ -17,6 +27,7 @@ jobs:
 
     permissions:
       contents: write  # Required to push changes back to repo
+      issues: write    # Required to create issue on failure
 
     steps:
     - name: Checkout repository
@@ -29,7 +40,9 @@ jobs:
 
     - name: Run prayer schedule generator
       env:
-        EMAIL_ENABLED: 'true'
+        # For scheduled runs, always send emails.
+        # For manual runs, respect the send_emails input (defaults to false).
+        EMAIL_ENABLED: ${{ github.event_name == 'schedule' && 'true' || inputs.send_emails || 'false' }}
         SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
         SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
         RECIPIENT_EMAILS: ${{ secrets.RECIPIENT_EMAILS }}
@@ -40,7 +53,7 @@ jobs:
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "GitHub Actions Bot"
-        git add -A
+        git add Prayer_Schedule_Current_Week.html Prayer_Schedule_Current_Week.txt prayer_schedule_log.txt archive/
         git diff --staged --quiet || git commit -m "Auto-generate prayer schedule for $(date +%Y-%m-%d)"
         git push || echo "No changes to push"
 
@@ -54,6 +67,16 @@ jobs:
           prayer_schedule_log.txt
         retention-days: 90
         if-no-files-found: warn
+
+    - name: Create issue on failure
+      if: failure() && github.event_name == 'schedule'
+      run: |
+        gh issue create \
+          --title "Prayer schedule generation failed on $(date +%Y-%m-%d)" \
+          --body "The daily prayer schedule workflow failed. Please check the [workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details." \
+          --label "bug"
+      env:
+        GH_TOKEN: ${{ github.token }}
 
   deploy-pages:
     needs: generate-schedule
