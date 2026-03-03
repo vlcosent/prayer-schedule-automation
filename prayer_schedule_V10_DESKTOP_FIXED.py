@@ -72,7 +72,7 @@ try:
                 # If still no desktop found, use current directory
                 DESKTOP_DIR = os.getcwd()
                 print(f"Warning: Could not find desktop, using current directory: {DESKTOP_DIR}")
-except:
+except Exception:
     # Ultimate fallback
     DESKTOP_DIR = os.getcwd()
     print(f"Warning: Could not find desktop, using current directory: {DESKTOP_DIR}")
@@ -100,22 +100,19 @@ RECIPIENT_EMAILS = os.environ.get('RECIPIENT_EMAILS', ','.join([
 ]))
 
 
-# US Central Time offset from UTC.
-# CST (Nov-Mar) = UTC-6, CDT (Mar-Nov) = UTC-5.
-# Using -6 (CST) as the conservative default for the church's timezone.
-CENTRAL_UTC_OFFSET_HOURS = -6
+# US Central Time via IANA timezone database (stdlib since Python 3.9).
+# Automatically handles CST (UTC-6) and CDT (UTC-5) transitions.
+from zoneinfo import ZoneInfo
+CENTRAL_TZ = ZoneInfo("America/Chicago")
 
 
 def get_today():
-    """Get today's date in US Central Time.
+    """Get current date/time in US Central Time.
 
-    The server (GitHub Actions) runs in UTC. The church is in US Central Time.
-    At 2 AM UTC it is still the previous evening in Central Time, so we must
-    apply the offset to get the correct local date for the church.
+    Uses the IANA timezone database so DST transitions are always correct,
+    even if US rules change in the future (via tzdata updates).
     """
-    utc_now = datetime.utcnow()
-    central_now = utc_now + timedelta(hours=CENTRAL_UTC_OFFSET_HOURS)
-    return central_now
+    return datetime.now(CENTRAL_TZ)
 
 
 def verify_email_date(today, monday):
@@ -368,7 +365,7 @@ def calculate_week_number(date):
 # continuous week numbers match ISO week numbers exactly. This avoids the
 # bug where ISO week numbers reset from 52 (or 53) to 1 at year boundaries,
 # which caused cycle_position discontinuities and duplicate family assignments.
-REFERENCE_MONDAY = datetime(2025, 12, 29)
+REFERENCE_MONDAY = datetime(2025, 12, 29, tzinfo=CENTRAL_TZ)
 
 def calculate_continuous_week(monday_date):
     """Calculate a continuous week number that never resets at year boundaries.
@@ -383,7 +380,11 @@ def calculate_continuous_week(monday_date):
     equals the ISO week number, maintaining identical behavior to the old code
     within the current year while fixing the year-boundary problem.
     """
-    days_diff = (monday_date - REFERENCE_MONDAY).days
+    # Strip timezone info for arithmetic so callers can pass either
+    # naive or aware datetimes (e.g., verification tests use naive dates).
+    ref = REFERENCE_MONDAY.replace(tzinfo=None)
+    md = monday_date.replace(tzinfo=None) if monday_date.tzinfo else monday_date
+    days_diff = (md - ref).days
     return (days_diff // 7) + 1  # 1-based to match ISO week convention
 
 def create_v10_master_pools():
@@ -619,10 +620,11 @@ def generate_schedule_content(week_number, start_date, elder_assignments):
     
     # HTML version for desktop - Professional style with FIXED ENCODING
     html = f"""<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>Prayer Schedule - Week {week_number}</title>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="refresh" content="3600">
     <style>
         body {{
@@ -861,9 +863,9 @@ def generate_schedule_content(week_number, start_date, elder_assignments):
             <h2>This Week's Prayer Schedule</h2>
             <table class="schedule-table">
                 <tr>
-                    <th>Day</th>
-                    <th>Date</th>
-                    <th>Elder(s) Assigned</th>
+                    <th scope="col">Day</th>
+                    <th scope="col">Date</th>
+                    <th scope="col">Elder(s) Assigned</th>
                 </tr>
     """
     
@@ -1070,7 +1072,7 @@ def archive_previous_schedule():
         print(f"   [INFO] No previous schedule to archive (first run or file doesn't exist)")
         return False
 
-def send_email_schedule(week_num, monday, text_content):
+def send_email_schedule(week_num, monday, text_content, today=None):
     """
     Send the full weekly prayer schedule via email (used on Mondays).
     Uses Gmail SMTP with credentials from environment variables.
@@ -1093,8 +1095,9 @@ def send_email_schedule(week_num, monday, text_content):
             print("   [WARNING] No recipient emails configured")
             return False
 
-        # Get today's verified date
-        today = get_today()
+        # Use caller's today to avoid time drift between main() and email send
+        if today is None:
+            today = get_today()
         today_formatted = today.strftime('%A, %B %d, %Y')
 
         # Verify date before sending
@@ -1303,8 +1306,8 @@ def log_activity(message):
         log_file = os.path.join(DESKTOP_DIR, "prayer_schedule_log.txt")
         with open(log_file, 'a', encoding='utf-8') as f:
             f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
-    except:
-        pass  # Silent fail for logging
+    except Exception as e:
+        print(f"   [WARNING] Logging failed: {e}", file=sys.stderr)
 
 def verify_schedule(assignments):
     """Verify the schedule meets requirements"""
@@ -1442,8 +1445,13 @@ def main():
                 return False
 
             # Send full weekly email
-            print("\nSending weekly schedule email...")
-            send_email_schedule(week_num, monday, text_content)
+            if EMAIL_ENABLED:
+                print("\nSending weekly schedule email...")
+                weekly_email_ok = send_email_schedule(week_num, monday, text_content, today=today)
+                if not weekly_email_ok:
+                    print("   [WARNING] Weekly email delivery failed - schedule files were still saved")
+            else:
+                print("\nEmail delivery is disabled (set EMAIL_ENABLED=true to send)")
 
             log_activity(f"Generated Week {week_num} schedule successfully (Monday full run)")
         else:
@@ -1461,8 +1469,11 @@ def main():
             log_activity(f"Daily update for {today_name}, Week {week_num}")
 
         # === EVERY DAY: Send daily prayer reminder email ===
-        print(f"\nSending daily prayer reminder for {today_name}...")
-        send_daily_email(today, week_num, monday, elder_assignments)
+        if EMAIL_ENABLED:
+            print(f"\nSending daily prayer reminder for {today_name}...")
+            daily_email_ok = send_daily_email(today, week_num, monday, elder_assignments)
+            if not daily_email_ok:
+                print("   [WARNING] Daily email delivery failed")
 
         print(f"\n[OK] {'Schedule generation' if is_monday else 'Daily update'} complete!")
         print(f"All files have been saved to: {DESKTOP_DIR}")
