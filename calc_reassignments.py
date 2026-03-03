@@ -38,13 +38,13 @@ for cycle_week in range(8):
 print("\n\nRECOMMENDED REASSIGNMENTS:")
 print("="*100)
 
-# Manually calculate best reassignments
+# Manually calculate best reassignments (161 families, Pool 0=21, Pools 1-7=20)
 recommendations = {
-    0: "Kyle's family (from Pool 5, 19 fam) → Assign to elder with 19 families",
-    1: "Frank's family (from Pool 3, 19 fam) → Assign to elder with 19 families\n     Jerry's family (from Pool 4, 19 fam) → Assign to elder with 19 families",
-    2: "Brian's family (from Pool 3, 19 fam) → Assign to elder with 19 families\n     Larry's family (from Pool 1, 20 fam) → Assign to elder with 18 families",
-    5: "Jonathan's family (from Pool 1, 20 fam) → Assign to elder with 18-19 families",
-    7: "Alan's family (from Pool 7, 19 fam) → Assign to elder with 19 families"
+    1: "Alan's family -> Jerry Wood (SAFE)\n     Frank's family -> Jonathan Loveday (SAFE)\n     Kyle's family -> Brian McLaughlin (SAFE)",
+    4: "Brian's family -> Larry McDuffee (SAFE)\n     Larry's family -> Brian McLaughlin (SAFE)",
+    5: "L.A.'s family -> Jonathan Loveday (SAFE)",
+    6: "Jerry's family -> Kyle Fairman (SAFE)",
+    7: "Jonathan's family -> Frank Bohannon (SAFE)"
 }
 
 for week, rec in recommendations.items():

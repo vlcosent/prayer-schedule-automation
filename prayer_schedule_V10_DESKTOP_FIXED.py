@@ -12,7 +12,7 @@ Features:
 - Website highlights current day of the week at the top
 - ASCII only output (no Unicode errors)
 - Perfect 8-week rotation cycle
-- Flexible family counts (18-20 per elder) to ensure perfect rotation
+- Flexible family counts (19-21 per elder) to ensure perfect rotation
 - Automatic archiving of previous schedules
 - ALL FILES SAVED TO DESKTOP (or current directory in CI)
 
@@ -33,7 +33,7 @@ FIXES APPLIED:
 9. Fixed year-boundary rotation bug: ISO week numbers reset from 52/53 to 1
    at year boundaries, causing cycle_position to jump and duplicate family
    assignments. Now uses continuous week counting from a fixed reference date.
-10. Fixed total_assignments counter to show total families (154) not elder count (8)
+10. Fixed total_assignments counter to show total families (161) not elder count (8)
 11. Added daily email automation - sends prayer reminder each day
 12. Added day-of-week highlighting on website (JavaScript-based)
 """
@@ -169,7 +169,7 @@ ELDER_FAMILIES = {
     "Larry McDuffee": "McDuffee, Larry & Linda"
 }
 
-# Church Directory CSV - All 154 families
+# Church Directory CSV - All 161 families
 DIRECTORY_CSV = """Last Name,First Names
 Allred,"Patric & Courtney; Brady Hoyt, Allie Grace"
 Austin,Shawn
@@ -207,8 +207,10 @@ Davis,Gail
 Davis,J.C. & Lana
 Delmonte,Steve & Jenny
 Dodson,Bendell
+Edwards,Emily
 Evans,Janie
 Fairman,"Kyle & Leigh Ann; Wyatt, Audrey"
+Fawehinmi,Ethan
 Folk,Roberta
 Fowler,Rick & Sue
 Fox,Jean
@@ -224,6 +226,7 @@ Hall,Robin
 Harris,Jimmy & Donna
 Hassler,Rebecca
 Hassler,Steve & Barbara
+Hawn,Daniel
 Haymon,Vernon
 Haynes,Cameron & Evette
 Hedgecoth,Myra
@@ -240,7 +243,7 @@ Isaacson,Michael & Terry
 Iverson,Don & Cathy
 Jackson,Gene & Thelda
 Jackson,Robert & Tracy
-Jenkins,Phil & Miriam
+Jenkins,Miriam
 Judd,"Alan & Amy; Anderson, Adrian, Adam"
 Keck,"Jim & Andrea; Conner, Emily"
 Kerley,Marvin & Rachel
@@ -270,11 +273,14 @@ Napier,Natalie
 O'Dell,Betty & Bill
 O'Guin,Linda
 Parham,"Johnny & Charity; Eli"
+Parham,Jordan
 Parham,"Tom & Jill; Brantley"
 Parsons,Charles
 Pernell,Jerry & Tammi
 Pierce,Chris & Alex
 Potter,Rhonda & David
+Pritt,Judy
+Pritt,"Scott & Kellee"
 Randolph,Clyde & Betty
 Rector,Mary
 Rector,"Troy; Kadence"
@@ -295,7 +301,6 @@ Seiber,"Seth & Madison; Kayson, Kendall"
 Selby,"Brian; Gavin"
 Simmons,Bruce & Louise
 Slate,Ray & Martha
-Smith,Hazel
 Smith,Joe Lee
 Smith,Roger & Dianna
 Smith,Scott & Juanita
@@ -311,6 +316,7 @@ Vaden,David & Sheila
 Vaughn,Dennis & Diane
 Walker,Barbara
 Warner,Jean
+Weathers,"Barry & Nancy"
 Webb,Richard & Sylvia
 Wells,Martha
 White,Doris
@@ -324,7 +330,8 @@ Wyatt,"Jason & Rachel; Mason"
 Wyatt,"Stephanie; Sue Ann"
 Wyatt,Sarah
 Young,Donna & David
-Young,Mickey & Pat"""
+Young,Mickey & Pat
+Young,Scott"""
 
 def parse_directory():
     """Parse the CSV directory"""
@@ -397,8 +404,8 @@ def create_v10_master_pools():
 
     # FIXED: Removed unnecessary rebalancing code
     # The round-robin distribution already achieves:
-    # - Pools 0 and 1: 20 families each (154 % 8 = 2, so first 2 pools get extra)
-    # - Pools 2-7: 19 families each
+    # - Pool 0: 21 families (161 % 8 = 1, so first pool gets extra)
+    # - Pools 1-7: 20 families each
 
     # Sort each pool for consistency
     for pool in pools:
@@ -459,24 +466,25 @@ def assign_families_for_week_v10(week_number):
     # Second pass: Redistribute filtered families using FIXED reassignment table
     # This ensures consistency and prevents week-to-week repeats
     #
-    # Fixed reassignment mapping based on conflict analysis (154 families):
-    # - Cycle week 0 (Week 1): Jerry Wood's and Kyle Fairman's families filtered
-    # - Cycle week 1 (Week 2): Brian McLaughlin's, Frank Bohannon's, and Larry McDuffee's families filtered
-    # - Cycle week 3 (Week 4): L.A. Fox's family filtered
-    # - Cycle week 4 (Week 5): Jonathan Loveday's family filtered
-    # - Cycle week 6 (Week 7): Alan Judd's family filtered
+    # Fixed reassignment mapping based on conflict analysis (161 families):
+    # Pool 0: 21 families, Pools 1-7: 20 families each
+    # - Cycle week 1: Alan Judd's, Frank Bohannon's, and Kyle Fairman's families filtered
+    # - Cycle week 4: Brian McLaughlin's and Larry McDuffee's families filtered
+    # - Cycle week 5: L.A. Fox's family filtered
+    # - Cycle week 6: Jerry Wood's family filtered
+    # - Cycle week 7: Jonathan Loveday's family filtered
     #
-    # Reassignments chosen to maintain 18-20 family balance and avoid repeats:
-    # Based on analysis: assign to elders with 19 families (to reach 20) or 18 (to reach 19)
+    # Reassignments chosen to maintain 19-21 family balance and avoid repeats:
+    # Each target verified SAFE (family not in target's adjacent-week pools)
     FIXED_REASSIGNMENT_MAP = {
-        0: {"Jerry Wood": "Kyle Fairman",            # Jerry(18) filtered -> Kyle(18->19)
-            "Kyle Fairman": "Jerry Wood"},           # Kyle(18) filtered -> Jerry(18->19)
-        1: {"Brian McLaughlin": "Jerry Wood",        # Brian(18) filtered -> Jerry(19->20)
-            "Frank Bohannon": "Jonathan Loveday",    # Frank(18) filtered -> Jonathan(19->20)
-            "Larry McDuffee": "Brian McLaughlin"},   # Larry(19) filtered -> Brian(18->19)
-        3: {"L.A. Fox": "Alan Judd"},                # L.A.(19) filtered -> Alan(19->20)
-        4: {"Jonathan Loveday": "Alan Judd"},        # Jonathan(19) filtered -> Alan(19->20)
-        6: {"Alan Judd": "Jonathan Loveday"},        # Alan(18) filtered -> Jonathan(19->20)
+        1: {"Alan Judd": "Jerry Wood",               # Alan(19) filtered -> Jerry(20->21) SAFE
+            "Frank Bohannon": "Jonathan Loveday",    # Frank(19) filtered -> Jonathan(20->21) SAFE
+            "Kyle Fairman": "Brian McLaughlin"},     # Kyle(19) filtered -> Brian(20->21) SAFE
+        4: {"Brian McLaughlin": "Larry McDuffee",    # Brian(19) filtered -> Larry(19->20) SAFE
+            "Larry McDuffee": "Brian McLaughlin"},   # Larry(19) filtered -> Brian(19->20) SAFE
+        5: {"L.A. Fox": "Jonathan Loveday"},         # L.A.(19) filtered -> Jonathan(20->21) SAFE
+        6: {"Jerry Wood": "Kyle Fairman"},           # Jerry(19) filtered -> Kyle(20->21) SAFE
+        7: {"Jonathan Loveday": "Frank Bohannon"},   # Jonathan(19) filtered -> Frank(20->21) SAFE
     }
 
     reassignment_map = FIXED_REASSIGNMENT_MAP.get(cycle_position, {})
@@ -516,11 +524,11 @@ def verify_v10_algorithm():
     week_assignments = assign_families_for_week_v10(32)
     for elder, families in week_assignments.items():
         actual = len(families)
-        # We accept 18-20 families as valid
-        if 18 <= actual <= 20:
+        # We accept 19-21 families as valid
+        if 19 <= actual <= 21:
             print(f"   [OK] {elder}: {actual} families")
         else:
-            print(f"   [X] {elder}: {actual} families (should be 18-20)")
+            print(f"   [X] {elder}: {actual} families (should be 19-21)")
             all_perfect = False
     
     # Check 2: Elder own family
@@ -845,7 +853,7 @@ def generate_schedule_content(week_number, start_date, elder_assignments):
 
         <div class="content">
             <div class="note">
-                <strong>Note:</strong> Each elder has 18-20 families to ensure complete rotation coverage.
+                <strong>Note:</strong> Each elder has 19-21 families to ensure complete rotation coverage.
                 Monday always has two elders assigned for prayer.
                 Daily emails are sent each morning to remind everyone of today's prayer assignment.
             </div>
@@ -1014,7 +1022,7 @@ Note: Monday always has two elders assigned for prayer.
     """
     
     text += "="*60 + "\n"
-    text += "Note: Each elder has 18-20 families for complete rotation.\n"
+    text += "Note: Each elder has 19-21 families for complete rotation.\n"
     text += "="*60 + "\n\n"
     text += "-- Crossville Church of Christ Elder Ministry --\n"
     
@@ -1324,11 +1332,11 @@ def verify_schedule(assignments):
     """Verify the schedule meets requirements"""
     issues = []
     
-    # Check family counts (18-20 is acceptable)
+    # Check family counts (19-21 is acceptable)
     for elder, families in assignments.items():
         actual = len(families)
-        if actual < 18 or actual > 20:
-            issues.append(f"{elder}: {actual} families (should be 18-20)")
+        if actual < 19 or actual > 21:
+            issues.append(f"{elder}: {actual} families (should be 19-21)")
     
     # Check for elder own families
     for elder, families in assignments.items():
