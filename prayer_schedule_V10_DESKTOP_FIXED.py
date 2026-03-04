@@ -1073,35 +1073,43 @@ def archive_previous_schedule():
         return False
 
 def _email_styles():
-    """Shared inline CSS styles for HTML emails (email-client compatible)."""
+    """Shared inline CSS styles for HTML emails (email-client compatible).
+
+    Uses a conservative, professional color palette:
+      - Header: #2c3e50 (dark navy)
+      - Accent:  #34495e (muted slate)
+      - Table header: #34495e
+      - Borders/blocks: #7f8c8d (gray) and #bdc3c7 (light gray)
+      - Text: #333333 / #555555
+    """
     return {
-        'body': 'margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;',
-        'wrapper': 'width:100%;background-color:#f4f5f7;padding:30px 0;',
-        'container': 'max-width:620px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);',
-        'header': 'background:#2c3e50;color:#ffffff;padding:28px 30px;text-align:center;',
-        'header_h1': 'margin:0 0 6px 0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:0.5px;',
-        'header_h2': 'margin:0 0 4px 0;font-size:17px;font-weight:400;color:#dce6f0;',
-        'header_h3': 'margin:0;font-size:14px;font-weight:400;color:#a0b4c8;',
-        'accent_bar': 'height:4px;background:linear-gradient(90deg,#3498db,#e67e22);',
-        'content': 'padding:28px 30px;color:#333333;font-size:15px;line-height:1.6;',
-        'section_title': 'font-size:17px;font-weight:700;color:#2c3e50;margin:24px 0 12px 0;border-bottom:2px solid #3498db;padding-bottom:6px;',
-        'table': 'width:100%;border-collapse:collapse;margin:16px 0;',
-        'th': 'background:#3498db;color:#ffffff;padding:10px 14px;text-align:left;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;',
-        'td': 'padding:10px 14px;border-bottom:1px solid #e8eaed;font-size:14px;color:#333333;',
-        'td_alt': 'padding:10px 14px;border-bottom:1px solid #e8eaed;font-size:14px;color:#333333;background:#f8f9fa;',
-        'highlight_td': 'padding:10px 14px;border-bottom:1px solid #e8eaed;font-size:14px;color:#d35400;font-weight:600;background:#fff8f0;',
-        'elder_block': 'margin:18px 0;border-left:4px solid #3498db;padding:12px 18px;background:#f8fbfe;border-radius:0 6px 6px 0;',
-        'elder_block_accent': 'margin:18px 0;border-left:4px solid #e67e22;padding:12px 18px;background:#fef9f3;border-radius:0 6px 6px 0;',
-        'elder_name': 'font-size:16px;font-weight:700;color:#2c3e50;margin:0 0 4px 0;',
-        'elder_count': 'font-size:13px;color:#7f8c8d;margin:0 0 10px 0;font-style:italic;',
-        'family_item': 'padding:3px 0;font-size:14px;color:#444444;',
-        'focus_banner': 'background:#e67e22;color:#ffffff;padding:20px 30px;text-align:center;',
-        'focus_banner_h2': 'margin:0 0 4px 0;font-size:20px;font-weight:700;color:#ffffff;',
-        'focus_banner_sub': 'margin:0;font-size:15px;color:#fce4c8;',
-        'footer': 'padding:20px 30px;text-align:center;background:#f8f9fa;border-top:1px solid #e8eaed;',
-        'footer_link': 'display:inline-block;background:#3498db;color:#ffffff;text-decoration:none;padding:10px 24px;border-radius:5px;font-size:14px;font-weight:600;',
-        'footer_text': 'margin:12px 0 0 0;font-size:12px;color:#999999;',
-        'divider': 'height:1px;background:#e8eaed;margin:20px 0;',
+        'body': 'margin:0;padding:0;background-color:#f2f3f5;font-family:Georgia,Times New Roman,serif;',
+        'wrapper': 'width:100%;background-color:#f2f3f5;padding:30px 0;',
+        'container': 'max-width:620px;margin:0 auto;background:#ffffff;border-radius:4px;overflow:hidden;border:1px solid #dcdfe3;',
+        'header': 'background:#2c3e50;color:#ffffff;padding:26px 30px;text-align:center;',
+        'header_h1': 'margin:0 0 6px 0;font-size:21px;font-weight:700;color:#ffffff;letter-spacing:0.3px;',
+        'header_h2': 'margin:0 0 4px 0;font-size:15px;font-weight:400;color:#d5dde6;',
+        'header_h3': 'margin:0;font-size:13px;font-weight:400;color:#a0b0c0;',
+        'accent_bar': 'height:3px;background:#34495e;',
+        'content': 'padding:26px 30px;color:#333333;font-size:15px;line-height:1.7;',
+        'section_title': 'font-size:16px;font-weight:700;color:#2c3e50;margin:22px 0 10px 0;border-bottom:1px solid #bdc3c7;padding-bottom:6px;',
+        'table': 'width:100%;border-collapse:collapse;margin:14px 0;',
+        'th': 'background:#34495e;color:#ffffff;padding:9px 14px;text-align:left;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;',
+        'td': 'padding:9px 14px;border-bottom:1px solid #e0e3e7;font-size:14px;color:#333333;',
+        'td_alt': 'padding:9px 14px;border-bottom:1px solid #e0e3e7;font-size:14px;color:#333333;background:#f7f8f9;',
+        'highlight_td': 'padding:9px 14px;border-bottom:1px solid #e0e3e7;font-size:14px;color:#2c3e50;font-weight:600;background:#eef1f5;',
+        'elder_block': 'margin:16px 0;border-left:3px solid #7f8c8d;padding:10px 16px;background:#f7f8f9;border-radius:0 4px 4px 0;',
+        'elder_block_accent': 'margin:16px 0;border-left:3px solid #2c3e50;padding:10px 16px;background:#f0f2f5;border-radius:0 4px 4px 0;',
+        'elder_name': 'font-size:15px;font-weight:700;color:#2c3e50;margin:0 0 3px 0;',
+        'elder_count': 'font-size:13px;color:#7f8c8d;margin:0 0 8px 0;font-style:italic;',
+        'family_item': 'padding:2px 0;font-size:14px;color:#444444;',
+        'focus_banner': 'background:#34495e;color:#ffffff;padding:18px 30px;text-align:center;',
+        'focus_banner_h2': 'margin:0 0 4px 0;font-size:18px;font-weight:700;color:#ffffff;',
+        'focus_banner_sub': 'margin:0;font-size:14px;color:#d5dde6;',
+        'footer': 'padding:18px 30px;text-align:center;background:#f7f8f9;border-top:1px solid #e0e3e7;',
+        'footer_link': 'display:inline-block;background:#2c3e50;color:#ffffff;text-decoration:none;padding:9px 22px;border-radius:4px;font-size:13px;font-weight:600;',
+        'footer_text': 'margin:10px 0 0 0;font-size:12px;color:#999999;',
+        'divider': 'height:1px;background:#e0e3e7;margin:18px 0;',
     }
 
 
@@ -1164,7 +1172,7 @@ def _build_weekly_email_html(week_num, date_range, monday, schedule, elder_assig
     <!-- Header -->
     <div style="{s['header']}">
         <h1 style="{s['header_h1']}">Crossville Church of Christ</h1>
-        <h2 style="{s['header_h2']}">Elder Prayer Schedule &mdash; Week {week_num}</h2>
+        <h2 style="{s['header_h2']}">Weekly Elder Prayer List &mdash; Week {week_num}</h2>
         <h3 style="{s['header_h3']}">{date_range}</h3>
     </div>
     <div style="{s['accent_bar']}"></div>
@@ -1172,7 +1180,7 @@ def _build_weekly_email_html(week_num, date_range, monday, schedule, elder_assig
     <!-- Content -->
     <div style="{s['content']}">
         <p>Greetings,</p>
-        <p>Below is the prayer schedule for <strong>Week {week_num}</strong> ({date_range}).
+        <p>Below is the elder prayer list for <strong>Week {week_num}</strong> ({date_range}).
            Each elder is assigned families to pray for on the designated day.
            Monday always has two elders assigned.</p>
 
@@ -1193,7 +1201,7 @@ def _build_weekly_email_html(week_num, date_range, monday, schedule, elder_assig
     <!-- Footer -->
     <div style="{s['footer']}">
         <a href="https://vlcosent.github.io/prayer-schedule-automation/" style="{s['footer_link']}">View Full Schedule Online</a>
-        <p style="{s['footer_text']}">Crossville Church of Christ &bull; Elder Prayer Ministry</p>
+        <p style="{s['footer_text']}">Crossville Church of Christ &bull; Daily Elder Prayer List</p>
     </div>
 
 </div>
@@ -1233,21 +1241,21 @@ def _build_daily_email_html(today_formatted, today_name, week_num, elder_names, 
     <!-- Header -->
     <div style="{s['header']}">
         <h1 style="{s['header_h1']}">Crossville Church of Christ</h1>
-        <h2 style="{s['header_h2']}">Elder Prayer Ministry</h2>
+        <h2 style="{s['header_h2']}">Daily Elder Prayer List</h2>
         <h3 style="{s['header_h3']}">Week {week_num}</h3>
     </div>
     <div style="{s['accent_bar']}"></div>
 
-    <!-- Today's Focus Banner -->
+    <!-- Today's Prayer List Banner -->
     <div style="{s['focus_banner']}">
-        <h2 style="{s['focus_banner_h2']}">Today's Prayer Focus</h2>
+        <h2 style="{s['focus_banner_h2']}">Today's Prayer List</h2>
         <p style="{s['focus_banner_sub']}">{today_name}, {today_formatted} &mdash; {elder_names}</p>
     </div>
 
     <!-- Content -->
     <div style="{s['content']}">
         <p>Greetings,</p>
-        <p>Today's prayer assignment is led by <strong>{elder_names}</strong>.
+        <p>Today's prayer list is led by <strong>{elder_names}</strong>.
            Please keep the following families in your prayers.</p>
 
         {prayer_sections}
@@ -1261,7 +1269,7 @@ def _build_daily_email_html(today_formatted, today_name, week_num, elder_names, 
     <!-- Footer -->
     <div style="{s['footer']}">
         <a href="https://vlcosent.github.io/prayer-schedule-automation/" style="{s['footer_link']}">View Full Schedule Online</a>
-        <p style="{s['footer_text']}">Crossville Church of Christ &bull; Elder Prayer Ministry</p>
+        <p style="{s['footer_text']}">Crossville Church of Christ &bull; Daily Elder Prayer List</p>
     </div>
 
 </div>
