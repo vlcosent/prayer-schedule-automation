@@ -1,1 +1,10 @@
 __pycache__/
+*.pyc
+
+# Environment and secrets
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
