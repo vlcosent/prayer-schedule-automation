@@ -1241,22 +1241,14 @@ def _build_daily_email_html(today_formatted, today_name, week_num, elder_names, 
     <!-- Header -->
     <div style="{s['header']}">
         <h1 style="{s['header_h1']}">Crossville Church of Christ</h1>
-        <h2 style="{s['header_h2']}">Daily Elder Prayer List</h2>
-        <h3 style="{s['header_h3']}">Week {week_num}</h3>
+        <h2 style="{s['header_h2']}">{today_name}, {today_formatted} &mdash; Week {week_num}</h2>
+        <h3 style="{s['header_h3']}">Elder: {elder_names}</h3>
     </div>
     <div style="{s['accent_bar']}"></div>
 
-    <!-- Today's Prayer List Banner -->
-    <div style="{s['focus_banner']}">
-        <h2 style="{s['focus_banner_h2']}">Today's Prayer List</h2>
-        <p style="{s['focus_banner_sub']}">{today_name}, {today_formatted} &mdash; {elder_names}</p>
-    </div>
-
     <!-- Content -->
     <div style="{s['content']}">
-        <p>Greetings,</p>
-        <p>Today's prayer list is led by <strong>{elder_names}</strong>.
-           Please keep the following families in your prayers.</p>
+        <p>Please keep the following families in your prayers.</p>
 
         {prayer_sections}
 
@@ -1445,12 +1437,11 @@ def send_daily_email(today, week_num, monday, elder_assignments):
         msg['Date'] = formatdate(localtime=True)
 
         # Plain text fallback
-        plain_body = f"""Greetings,
-
-Today's Prayer Focus - {today_formatted}
+        plain_body = f"""Crossville Church of Christ
+{today_name}, {today_formatted} - Week {week_num}
 Elder: {elder_names}
 {elder_details}
-Please keep these families in your prayers today.
+Please keep these families in your prayers.
 
 {'=' * 60}
 View the full schedule online: https://vlcosent.github.io/prayer-schedule-automation/
