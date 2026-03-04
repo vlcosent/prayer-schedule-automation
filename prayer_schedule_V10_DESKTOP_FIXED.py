@@ -1072,10 +1072,218 @@ def archive_previous_schedule():
         print(f"   [INFO] No previous schedule to archive (first run or file doesn't exist)")
         return False
 
-def send_email_schedule(week_num, monday, text_content, today=None):
+def _email_styles():
+    """Shared inline CSS styles for HTML emails (email-client compatible).
+
+    Uses a conservative, professional color palette:
+      - Header: #2c3e50 (dark navy)
+      - Accent:  #34495e (muted slate)
+      - Table header: #34495e
+      - Borders/blocks: #7f8c8d (gray) and #bdc3c7 (light gray)
+      - Text: #333333 / #555555
+    """
+    return {
+        'body': 'margin:0;padding:0;background-color:#f2f3f5;font-family:Georgia,Times New Roman,serif;',
+        'wrapper': 'width:100%;background-color:#f2f3f5;padding:30px 0;',
+        'container': 'max-width:620px;margin:0 auto;background:#ffffff;border-radius:4px;overflow:hidden;border:1px solid #dcdfe3;',
+        'header': 'background:#2c3e50;color:#ffffff;padding:26px 30px;text-align:center;',
+        'header_h1': 'margin:0 0 6px 0;font-size:21px;font-weight:700;color:#ffffff;letter-spacing:0.3px;',
+        'header_h2': 'margin:0 0 4px 0;font-size:15px;font-weight:400;color:#d5dde6;',
+        'header_h3': 'margin:0;font-size:13px;font-weight:400;color:#a0b0c0;',
+        'accent_bar': 'height:3px;background:#34495e;',
+        'content': 'padding:26px 30px;color:#333333;font-size:15px;line-height:1.7;',
+        'section_title': 'font-size:16px;font-weight:700;color:#2c3e50;margin:22px 0 10px 0;border-bottom:1px solid #bdc3c7;padding-bottom:6px;',
+        'table': 'width:100%;border-collapse:collapse;margin:14px 0;',
+        'th': 'background:#34495e;color:#ffffff;padding:9px 14px;text-align:left;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;',
+        'td': 'padding:9px 14px;border-bottom:1px solid #e0e3e7;font-size:14px;color:#333333;',
+        'td_alt': 'padding:9px 14px;border-bottom:1px solid #e0e3e7;font-size:14px;color:#333333;background:#f7f8f9;',
+        'highlight_td': 'padding:9px 14px;border-bottom:1px solid #e0e3e7;font-size:14px;color:#2c3e50;font-weight:600;background:#eef1f5;',
+        'elder_block': 'margin:16px 0;border-left:3px solid #7f8c8d;padding:10px 16px;background:#f7f8f9;border-radius:0 4px 4px 0;',
+        'elder_block_accent': 'margin:16px 0;border-left:3px solid #2c3e50;padding:10px 16px;background:#f0f2f5;border-radius:0 4px 4px 0;',
+        'elder_name': 'font-size:15px;font-weight:700;color:#2c3e50;margin:0 0 3px 0;',
+        'elder_count': 'font-size:13px;color:#7f8c8d;margin:0 0 8px 0;font-style:italic;',
+        'family_item': 'padding:2px 0;font-size:14px;color:#444444;',
+        'focus_banner': 'background:#34495e;color:#ffffff;padding:18px 30px;text-align:center;',
+        'focus_banner_h2': 'margin:0 0 4px 0;font-size:18px;font-weight:700;color:#ffffff;',
+        'focus_banner_sub': 'margin:0;font-size:14px;color:#d5dde6;',
+        'footer': 'padding:18px 30px;text-align:center;background:#f7f8f9;border-top:1px solid #e0e3e7;',
+        'footer_link': 'display:inline-block;background:#2c3e50;color:#ffffff;text-decoration:none;padding:9px 22px;border-radius:4px;font-size:13px;font-weight:600;',
+        'footer_text': 'margin:10px 0 0 0;font-size:12px;color:#999999;',
+        'divider': 'height:1px;background:#e0e3e7;margin:18px 0;',
+    }
+
+
+def _build_weekly_email_html(week_num, date_range, monday, schedule, elder_assignments):
+    """Build the HTML body for the weekly schedule email."""
+    s = _email_styles()
+
+    # Build schedule table rows
+    table_rows = ""
+    current_date = monday
+    for i, day in enumerate(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]):
+        elders = schedule[day]
+        elder_names = " &amp; ".join(elders)
+        date_str = current_date.strftime('%B %d')
+
+        if len(elders) > 1:
+            td_style = s['highlight_td']
+        elif i % 2 == 1:
+            td_style = s['td_alt']
+        else:
+            td_style = s['td']
+
+        table_rows += f"""<tr>
+            <td style="{td_style}"><strong>{day}</strong></td>
+            <td style="{td_style}">{date_str}</td>
+            <td style="{td_style}">{elder_names}</td>
+        </tr>"""
+        current_date += timedelta(days=1)
+
+    # Build prayer list sections
+    prayer_sections = ""
+    current_date = monday
+    for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]:
+        elders = schedule[day]
+        for elder in elders:
+            families = elder_assignments.get(elder, [])
+            block_style = s['elder_block_accent'] if len(elders) > 1 else s['elder_block']
+            date_str = current_date.strftime('%B %d')
+
+            family_list = ""
+            for j, family in enumerate(families, 1):
+                family_escaped = family.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                family_list += f'<div style="{s["family_item"]}">{j}. {family_escaped}</div>\n'
+
+            prayer_sections += f"""
+            <div style="{block_style}">
+                <p style="{s['elder_name']}">{elder} &mdash; {day}, {date_str}</p>
+                <p style="{s['elder_count']}">{len(families)} families to pray for</p>
+                {family_list}
+            </div>"""
+        current_date += timedelta(days=1)
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"></head>
+<body style="{s['body']}">
+<div style="{s['wrapper']}">
+<div style="{s['container']}">
+
+    <!-- Header -->
+    <div style="{s['header']}">
+        <h1 style="{s['header_h1']}">Crossville Church of Christ</h1>
+        <h2 style="{s['header_h2']}">Weekly Elder Prayer List &mdash; Week {week_num}</h2>
+        <h3 style="{s['header_h3']}">{date_range}</h3>
+    </div>
+    <div style="{s['accent_bar']}"></div>
+
+    <!-- Content -->
+    <div style="{s['content']}">
+        <p>Greetings,</p>
+        <p>Below is the elder prayer list for <strong>Week {week_num}</strong> ({date_range}).
+           Each elder is assigned families to pray for on the designated day.
+           Monday always has two elders assigned.</p>
+
+        <h3 style="{s['section_title']}">This Week's Schedule</h3>
+        <table style="{s['table']}">
+            <tr>
+                <th style="{s['th']}">Day</th>
+                <th style="{s['th']}">Date</th>
+                <th style="{s['th']}">Elder(s)</th>
+            </tr>
+            {table_rows}
+        </table>
+
+        <h3 style="{s['section_title']}">Prayer Lists</h3>
+        {prayer_sections}
+    </div>
+
+    <!-- Footer -->
+    <div style="{s['footer']}">
+        <a href="https://vlcosent.github.io/prayer-schedule-automation/" style="{s['footer_link']}">View Full Schedule Online</a>
+        <p style="{s['footer_text']}">Crossville Church of Christ &bull; Daily Elder Prayer List</p>
+    </div>
+
+</div>
+</div>
+</body>
+</html>"""
+    return html
+
+
+def _build_daily_email_html(today_formatted, today_name, week_num, elder_names, todays_elders, elder_assignments):
+    """Build the HTML body for the daily prayer reminder email."""
+    s = _email_styles()
+
+    # Build elder/family sections
+    prayer_sections = ""
+    for elder in todays_elders:
+        families = elder_assignments.get(elder, [])
+        family_list = ""
+        for j, family in enumerate(families, 1):
+            family_escaped = family.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            family_list += f'<div style="{s["family_item"]}">{j}. {family_escaped}</div>\n'
+
+        prayer_sections += f"""
+        <div style="{s['elder_block']}">
+            <p style="{s['elder_name']}">{elder}</p>
+            <p style="{s['elder_count']}">{len(families)} families to pray for</p>
+            {family_list}
+        </div>"""
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"></head>
+<body style="{s['body']}">
+<div style="{s['wrapper']}">
+<div style="{s['container']}">
+
+    <!-- Header -->
+    <div style="{s['header']}">
+        <h1 style="{s['header_h1']}">Crossville Church of Christ</h1>
+        <h2 style="{s['header_h2']}">Daily Elder Prayer List</h2>
+        <h3 style="{s['header_h3']}">Week {week_num}</h3>
+    </div>
+    <div style="{s['accent_bar']}"></div>
+
+    <!-- Today's Prayer List Banner -->
+    <div style="{s['focus_banner']}">
+        <h2 style="{s['focus_banner_h2']}">Today's Prayer List</h2>
+        <p style="{s['focus_banner_sub']}">{today_name}, {today_formatted} &mdash; {elder_names}</p>
+    </div>
+
+    <!-- Content -->
+    <div style="{s['content']}">
+        <p>Greetings,</p>
+        <p>Today's prayer list is led by <strong>{elder_names}</strong>.
+           Please keep the following families in your prayers.</p>
+
+        {prayer_sections}
+
+        <div style="{s['divider']}"></div>
+        <p style="text-align:center;color:#7f8c8d;font-size:13px;margin:0;">
+            Thank you for faithfully praying for our church family.
+        </p>
+    </div>
+
+    <!-- Footer -->
+    <div style="{s['footer']}">
+        <a href="https://vlcosent.github.io/prayer-schedule-automation/" style="{s['footer_link']}">View Full Schedule Online</a>
+        <p style="{s['footer_text']}">Crossville Church of Christ &bull; Daily Elder Prayer List</p>
+    </div>
+
+</div>
+</div>
+</body>
+</html>"""
+    return html
+
+
+def send_email_schedule(week_num, monday, text_content, today=None, elder_assignments=None):
     """
     Send the full weekly prayer schedule via email (used on Mondays).
     Uses Gmail SMTP with credentials from environment variables.
+    Sends professional HTML email with a plain text fallback.
     Includes date verification to ensure correct date on the email.
     """
     if not EMAIL_ENABLED:
@@ -1110,16 +1318,20 @@ def send_email_schedule(week_num, monday, text_content, today=None):
         # Calculate date range
         end_date = monday + timedelta(days=6)
         date_range = f"{monday.strftime('%b %d')}-{end_date.strftime('%d, %Y')}"
+        date_range_long = f"{monday.strftime('%B %d')} - {end_date.strftime('%B %d, %Y')}"
 
-        # Create email message
-        msg = MIMEMultipart()
+        # Get the week schedule for building the HTML version
+        schedule = get_week_schedule(week_num)
+
+        # Create email message (multipart/alternative: plain text + HTML)
+        msg = MIMEMultipart('alternative')
         msg['From'] = SENDER_EMAIL
         msg['To'] = ', '.join(recipients)
         msg['Subject'] = f"Weekly Prayer Schedule - Week {week_num} ({date_range})"
         msg['Date'] = formatdate(localtime=True)
 
-        # Email body - include the full text schedule
-        email_body = f"""Greetings,
+        # Plain text fallback
+        plain_body = f"""Greetings,
 
 Prayer schedule for Week {week_num} ({date_range}).
 
@@ -1127,8 +1339,11 @@ Prayer schedule for Week {week_num} ({date_range}).
 
 View the full schedule online: https://vlcosent.github.io/prayer-schedule-automation/
 """
+        msg.attach(MIMEText(plain_body, 'plain'))
 
-        msg.attach(MIMEText(email_body, 'plain'))
+        # HTML version (attached second so email clients prefer it)
+        html_body = _build_weekly_email_html(week_num, date_range_long, monday, schedule, elder_assignments or {})
+        msg.attach(MIMEText(html_body, 'html'))
 
         # Connect to Gmail SMTP server
         print(f"   [EMAIL] Connecting to {SMTP_SERVER}:{SMTP_PORT}...")
@@ -1166,6 +1381,7 @@ def send_daily_email(today, week_num, monday, elder_assignments):
     """
     Send a daily prayer reminder email highlighting today's elder(s) and their families.
     This is sent every day (including Monday) so each elder gets a reminder on their day.
+    Sends professional HTML email with a plain text fallback.
     Includes date verification to ensure the email date matches today's actual date.
     """
     if not EMAIL_ENABLED:
@@ -1205,7 +1421,7 @@ def send_daily_email(today, week_num, monday, elder_assignments):
             print(f"   [INFO] No elders assigned for {today_name} - skipping daily email")
             return False
 
-        # Build the daily prayer details
+        # Build the daily prayer details (plain text version)
         elder_details = ""
         for elder in todays_elders:
             families = elder_assignments.get(elder, [])
@@ -1221,15 +1437,15 @@ def send_daily_email(today, week_num, monday, elder_assignments):
         end_date = monday + timedelta(days=6)
         date_range = f"{monday.strftime('%b %d')}-{end_date.strftime('%d, %Y')}"
 
-        # Create email message with verified date
-        msg = MIMEMultipart()
+        # Create email message (multipart/alternative: plain text + HTML)
+        msg = MIMEMultipart('alternative')
         msg['From'] = SENDER_EMAIL
         msg['To'] = ', '.join(recipients)
         msg['Subject'] = f"Prayer Reminder - {today_name}, {today.strftime('%B %d')}: {elder_names} (Week {week_num})"
         msg['Date'] = formatdate(localtime=True)
 
-        # Email body - today's prayer focus
-        email_body = f"""Greetings,
+        # Plain text fallback
+        plain_body = f"""Greetings,
 
 Today's Prayer Focus - {today_formatted}
 Elder: {elder_names}
@@ -1239,8 +1455,14 @@ Please keep these families in your prayers today.
 {'=' * 60}
 View the full schedule online: https://vlcosent.github.io/prayer-schedule-automation/
 """
+        msg.attach(MIMEText(plain_body, 'plain'))
 
-        msg.attach(MIMEText(email_body, 'plain'))
+        # HTML version (attached second so email clients prefer it)
+        html_body = _build_daily_email_html(
+            today.strftime('%B %d, %Y'), today_name, week_num,
+            elder_names, todays_elders, elder_assignments
+        )
+        msg.attach(MIMEText(html_body, 'html'))
 
         # Connect to Gmail SMTP server
         print(f"   [EMAIL] Connecting to {SMTP_SERVER}:{SMTP_PORT}...")
@@ -1447,7 +1669,7 @@ def main():
             # Send full weekly email
             if EMAIL_ENABLED:
                 print("\nSending weekly schedule email...")
-                weekly_email_ok = send_email_schedule(week_num, monday, text_content, today=today)
+                weekly_email_ok = send_email_schedule(week_num, monday, text_content, today=today, elder_assignments=elder_assignments)
                 if not weekly_email_ok:
                     print("   [WARNING] Weekly email delivery failed - schedule files were still saved")
             else:
