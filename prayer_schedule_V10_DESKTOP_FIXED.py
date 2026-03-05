@@ -1075,31 +1075,40 @@ def archive_previous_schedule():
 def _email_styles():
     """Shared inline CSS styles for HTML emails (email-client compatible).
 
-    Conservative color palette - minimal color, maximum readability:
-      - Header: #2c3e50 (dark navy) - the only bold color
+    Color palette matches the website (GitHub Pages) design:
+      - Header: #2c3e50 (dark navy)
+      - Day nav bar: #1a252f (darker navy)
+      - Today accent: #e67e22 (orange) with gradient to #d35400
       - Text: #333333 (near-black)
-      - Borders: #cccccc (light gray)
       - Backgrounds: #ffffff (white) and #f7f8f9 (barely gray)
     """
     return {
-        'body': 'margin:0;padding:0;background-color:#f2f3f5;font-family:Georgia,Times New Roman,serif;',
-        'wrapper': 'width:100%;background-color:#f2f3f5;padding:30px 0;',
-        'container': 'max-width:620px;margin:0 auto;background:#ffffff;border-radius:4px;overflow:hidden;border:1px solid #dcdfe3;',
-        'header': 'background:#2c3e50;color:#ffffff;padding:22px 30px;text-align:center;',
-        'header_h1': 'margin:0 0 4px 0;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:0.3px;',
-        'header_sub': 'margin:0;font-size:13px;font-weight:400;color:#b0bec5;',
-        'today_banner': 'background:#ffffff;padding:20px 30px;text-align:center;border-bottom:1px solid #cccccc;',
-        'today_day': 'margin:0 0 2px 0;font-size:22px;font-weight:700;color:#2c3e50;',
-        'today_date': 'margin:0 0 4px 0;font-size:14px;color:#555555;',
-        'today_elder': 'margin:6px 0 0 0;font-size:16px;color:#333333;',
+        'body': 'margin:0;padding:0;background-color:#f5f5f5;font-family:Segoe UI,Arial,sans-serif;',
+        'wrapper': 'width:100%;background-color:#f5f5f5;padding:30px 0;',
+        'container': 'max-width:620px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.1);',
+        'header': 'background:#2c3e50;color:#ffffff;padding:30px 30px 20px 30px;text-align:center;',
+        'header_h1': 'margin:0 0 10px 0;font-size:26px;font-weight:700;color:#ffffff;',
+        'header_h2': 'margin:0 0 8px 0;font-size:20px;font-weight:600;color:#ffffff;',
+        'header_sub': 'margin:0;font-size:14px;font-weight:700;color:#dce1e5;',
+        'day_nav': 'background:#1a252f;padding:15px 10px;text-align:center;',
+        'day_pill': 'display:inline-block;padding:8px 10px;border-radius:25px;font-size:13px;font-weight:600;color:#8899a6;border:2px solid #2c3e50;text-align:center;min-width:55px;margin:2px;',
+        'day_pill_today': 'display:inline-block;padding:8px 10px;border-radius:25px;font-size:13px;font-weight:600;color:#ffffff;background-color:#e67e22;border:2px solid #e67e22;text-align:center;min-width:55px;margin:2px;',
+        'day_pill_past': 'display:inline-block;padding:8px 10px;border-radius:25px;font-size:13px;font-weight:600;color:#5a6a7a;border:2px solid #2c3e50;text-align:center;min-width:55px;margin:2px;',
+        'day_pill_label': 'display:block;font-size:11px;opacity:0.7;margin-top:2px;',
+        'day_pill_label_today': 'display:block;font-size:11px;opacity:1;margin-top:2px;',
+        'today_banner': 'background-color:#e67e22;padding:25px 30px;text-align:center;',
+        'today_banner_h2': 'margin:0 0 8px 0;font-size:20px;font-weight:700;color:#ffffff;',
+        'today_elder': 'margin:5px 0;font-size:18px;font-weight:700;color:#ffffff;',
+        'today_count': 'margin:5px 0 0 0;font-size:14px;color:#ffffff;opacity:0.9;',
         'content': 'padding:22px 30px;color:#333333;font-size:15px;line-height:1.7;',
         'section_label': 'font-size:13px;font-weight:700;color:#555555;text-transform:uppercase;letter-spacing:0.5px;margin:18px 0 8px 0;',
-        'table': 'width:100%;border-collapse:collapse;margin:10px 0;',
-        'th': 'background:#f7f8f9;color:#333333;padding:8px 12px;text-align:left;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;border-bottom:2px solid #cccccc;',
-        'td': 'padding:8px 12px;border-bottom:1px solid #e0e3e7;font-size:14px;color:#333333;',
-        'td_alt': 'padding:8px 12px;border-bottom:1px solid #e0e3e7;font-size:14px;color:#333333;background:#f7f8f9;',
-        'td_today': 'padding:8px 12px;border-bottom:1px solid #e0e3e7;font-size:14px;color:#2c3e50;font-weight:700;background:#f0f2f5;',
-        'elder_block': 'margin:14px 0;border-left:3px solid #cccccc;padding:10px 16px;background:#f7f8f9;border-radius:0 4px 4px 0;',
+        'table': 'width:100%;border-collapse:collapse;margin:10px 0;box-shadow:0 1px 3px rgba(0,0,0,0.1);',
+        'th': 'background:#3498db;color:#ffffff;padding:10px 12px;text-align:left;font-size:13px;font-weight:600;',
+        'td': 'padding:10px 12px;border-bottom:1px solid #ddd;font-size:14px;color:#333333;',
+        'td_alt': 'padding:10px 12px;border-bottom:1px solid #ddd;font-size:14px;color:#333333;background:#f8f9fa;',
+        'td_today': 'padding:10px 12px;border-bottom:1px solid #ddd;font-size:14px;color:#d35400;font-weight:700;background:#fef3e2;border-left:4px solid #e67e22;',
+        'elder_block': 'margin:14px 0;border-left:4px solid #3498db;padding:12px 16px;background:#f8f9fa;border-radius:0 4px 4px 0;',
+        'elder_block_today': 'margin:14px 0;border-left:4px solid #e67e22;padding:16px 20px;background:#fef9f3;border-radius:0 8px 8px 0;',
         'elder_name': 'font-size:15px;font-weight:700;color:#2c3e50;margin:0 0 2px 0;',
         'elder_count': 'font-size:13px;color:#777777;margin:0 0 8px 0;font-style:italic;',
         'family_item': 'padding:2px 0;font-size:14px;color:#444444;',
@@ -1113,13 +1122,14 @@ def _email_styles():
 def _build_combined_email_html(today, today_name, week_num, monday, schedule, elder_assignments):
     """Build a single combined HTML email for the day.
 
-    Layout (top to bottom):
-      1. Header: Church name, week number
-      2. Today banner: Day name (large), date, today's elder(s)
-      3. Today's prayer list: Elder block(s) with family lists
-      4. Week schedule table: All 7 days, today's row bold
-      5. On Mondays only: Full prayer lists for every elder
-      6. Footer: Link to online schedule
+    Layout matches the website (GitHub Pages) design:
+      1. Header: Church name (large), "Elder Prayer Schedule - Week X", date range
+      2. Day navigation bar: Day pills with today highlighted in orange
+      3. Today's Prayer Focus banner: Orange background, elder name, family count
+      4. Today's prayer list: Elder block(s) with family lists
+      5. Week schedule table: All 7 days, today's row highlighted
+      6. On Mondays only: Full prayer lists for every elder
+      7. Footer: Link to online schedule
     """
     s = _email_styles()
     is_monday = today.weekday() == 0
@@ -1128,7 +1138,32 @@ def _build_combined_email_html(today, today_name, week_num, monday, schedule, el
     elder_names_display = " &amp; ".join(todays_elders)
 
     end_date = monday + timedelta(days=6)
-    date_range = f"{monday.strftime('%b %d')} &ndash; {end_date.strftime('%b %d, %Y')}"
+    date_range = f"{monday.strftime('%B %d')} - {end_date.strftime('%B %d, %Y')}"
+
+    # --- Calculate total families being prayed for today ---
+    today_family_count = 0
+    for elder in todays_elders:
+        today_family_count += len(elder_assignments.get(elder, []))
+
+    # --- Day navigation pills (matches website day-nav bar) ---
+    day_pills = ""
+    current_date = monday
+    for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]:
+        is_today_pill = (day == today_name)
+        is_past = (current_date < today and not is_today_pill)
+
+        if is_today_pill:
+            pill_style = s['day_pill_today']
+            label_style = s['day_pill_label_today']
+        elif is_past:
+            pill_style = s['day_pill_past']
+            label_style = s['day_pill_label']
+        else:
+            pill_style = s['day_pill']
+            label_style = s['day_pill_label']
+
+        day_pills += f"""<div style="{pill_style}">{day[:3]}<span style="{label_style}">{current_date.strftime('%b %d')}</span></div>\n"""
+        current_date += timedelta(days=1)
 
     # --- Today's prayer list sections ---
     today_prayer_sections = ""
@@ -1140,7 +1175,7 @@ def _build_combined_email_html(today, today_name, week_num, monday, schedule, el
             family_list += f'<div style="{s["family_item"]}">{j}. {family_escaped}</div>\n'
 
         today_prayer_sections += f"""
-        <div style="{s['elder_block']}">
+        <div style="{s['elder_block_today']}">
             <p style="{s['elder_name']}">{elder}</p>
             <p style="{s['elder_count']}">{len(families)} families</p>
             {family_list}
@@ -1201,17 +1236,23 @@ def _build_combined_email_html(today, today_name, week_num, monday, schedule, el
 <div style="{s['wrapper']}">
 <div style="{s['container']}">
 
-    <!-- Header -->
+    <!-- Header (matches website) -->
     <div style="{s['header']}">
         <h1 style="{s['header_h1']}">Crossville Church of Christ</h1>
-        <p style="{s['header_sub']}">Elder Prayer List &mdash; Week {week_num} &mdash; {date_range}</p>
+        <h2 style="{s['header_h2']}">Elder Prayer Schedule - Week {week_num}</h2>
+        <p style="{s['header_sub']}">{date_range}</p>
     </div>
 
-    <!-- Today Banner -->
+    <!-- Day Navigation Bar (matches website day pills) -->
+    <div style="{s['day_nav']}">
+        {day_pills}
+    </div>
+
+    <!-- Today's Prayer Focus Banner (matches website orange banner) -->
     <div style="{s['today_banner']}">
-        <h2 style="{s['today_day']}">{today_name}</h2>
-        <p style="{s['today_date']}">{today.strftime('%B %d, %Y')}</p>
-        <p style="{s['today_elder']}">Praying today: <strong>{elder_names_display}</strong></p>
+        <h2 style="{s['today_banner_h2']}">Today's Prayer Focus</h2>
+        <p style="{s['today_elder']}">{elder_names_display}</p>
+        <p style="{s['today_count']}">{today_family_count} families being prayed for today</p>
     </div>
 
     <!-- Today's Prayer List -->
