@@ -1075,61 +1075,69 @@ def archive_previous_schedule():
 def _email_styles():
     """Shared inline CSS styles for HTML emails (email-client compatible).
 
-    Color palette matches the website (GitHub Pages) design:
-      - Header: #2c3e50 (dark navy)
-      - Day nav bar: #1a252f (darker navy)
-      - Today accent: #e67e22 (orange) with gradient to #d35400
-      - Text: #333333 (near-black)
-      - Backgrounds: #ffffff (white) and #f7f8f9 (barely gray)
+    Visual design mirrors the website (GitHub Pages) layout:
+      - Header: #2c3e50 (dark navy) with church name, schedule title, date range
+      - Day nav bar: #1a252f (darker navy) with day pill buttons
+      - Today accent: #e67e22 (warm orange) for today's banner and highlights
+      - Table headers: #3498db (blue) matching website schedule table
+      - Text: #333333 (near-black) on white/#f8f9fa backgrounds
+
+    Email compatibility notes:
+      - All styles are inline (no <style> block) for Gmail/Outlook/Apple Mail
+      - No CSS opacity (Outlook ignores it) - uses explicit color values instead
+      - No box-shadow (Outlook ignores it) - uses borders for depth
+      - Day pills use inline-block (widely supported) with table fallback structure
+      - border-radius degrades gracefully to square corners in older Outlook
     """
     return {
-        'body': 'margin:0;padding:0;background-color:#f5f5f5;font-family:Segoe UI,Arial,sans-serif;',
+        'body': 'margin:0;padding:0;background-color:#f5f5f5;font-family:Segoe UI,Arial,Helvetica,sans-serif;',
         'wrapper': 'width:100%;background-color:#f5f5f5;padding:30px 0;',
-        'container': 'max-width:620px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.1);',
-        'header': 'background:#2c3e50;color:#ffffff;padding:30px 30px 20px 30px;text-align:center;',
-        'header_h1': 'margin:0 0 10px 0;font-size:26px;font-weight:700;color:#ffffff;',
-        'header_h2': 'margin:0 0 8px 0;font-size:20px;font-weight:600;color:#ffffff;',
-        'header_sub': 'margin:0;font-size:14px;font-weight:700;color:#dce1e5;',
-        'day_nav': 'background:#1a252f;padding:15px 10px;text-align:center;',
-        'day_pill': 'display:inline-block;padding:8px 10px;border-radius:25px;font-size:13px;font-weight:600;color:#8899a6;border:2px solid #2c3e50;text-align:center;min-width:55px;margin:2px;',
-        'day_pill_today': 'display:inline-block;padding:8px 10px;border-radius:25px;font-size:13px;font-weight:600;color:#ffffff;background-color:#e67e22;border:2px solid #e67e22;text-align:center;min-width:55px;margin:2px;',
-        'day_pill_past': 'display:inline-block;padding:8px 10px;border-radius:25px;font-size:13px;font-weight:600;color:#5a6a7a;border:2px solid #2c3e50;text-align:center;min-width:55px;margin:2px;',
-        'day_pill_label': 'display:block;font-size:11px;opacity:0.7;margin-top:2px;',
-        'day_pill_label_today': 'display:block;font-size:11px;opacity:1;margin-top:2px;',
-        'today_banner': 'background-color:#e67e22;padding:25px 30px;text-align:center;',
-        'today_banner_h2': 'margin:0 0 8px 0;font-size:20px;font-weight:700;color:#ffffff;',
-        'today_elder': 'margin:5px 0;font-size:18px;font-weight:700;color:#ffffff;',
-        'today_count': 'margin:5px 0 0 0;font-size:14px;color:#ffffff;opacity:0.9;',
-        'content': 'padding:22px 30px;color:#333333;font-size:15px;line-height:1.7;',
-        'section_label': 'font-size:13px;font-weight:700;color:#555555;text-transform:uppercase;letter-spacing:0.5px;margin:18px 0 8px 0;',
-        'table': 'width:100%;border-collapse:collapse;margin:10px 0;box-shadow:0 1px 3px rgba(0,0,0,0.1);',
-        'th': 'background:#3498db;color:#ffffff;padding:10px 12px;text-align:left;font-size:13px;font-weight:600;',
-        'td': 'padding:10px 12px;border-bottom:1px solid #ddd;font-size:14px;color:#333333;',
-        'td_alt': 'padding:10px 12px;border-bottom:1px solid #ddd;font-size:14px;color:#333333;background:#f8f9fa;',
-        'td_today': 'padding:10px 12px;border-bottom:1px solid #ddd;font-size:14px;color:#d35400;font-weight:700;background:#fef3e2;border-left:4px solid #e67e22;',
-        'elder_block': 'margin:14px 0;border-left:4px solid #3498db;padding:12px 16px;background:#f8f9fa;border-radius:0 4px 4px 0;',
-        'elder_block_today': 'margin:14px 0;border-left:4px solid #e67e22;padding:16px 20px;background:#fef9f3;border-radius:0 8px 8px 0;',
+        'container': 'max-width:620px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #d0d4d9;',
+        'header': 'background:#2c3e50;color:#ffffff;padding:28px 30px 22px 30px;text-align:center;',
+        'header_h1': 'margin:0 0 8px 0;font-size:26px;font-weight:700;color:#ffffff;letter-spacing:0.3px;',
+        'header_h2': 'margin:0 0 6px 0;font-size:19px;font-weight:600;color:#ffffff;',
+        'header_sub': 'margin:0;font-size:14px;font-weight:700;color:#b0bec5;',
+        'day_nav': 'background:#1a252f;padding:14px 8px;text-align:center;font-size:0;',
+        'day_pill': 'display:inline-block;padding:8px 6px;border-radius:20px;font-size:12px;font-weight:600;color:#8899a6;border:2px solid #2c3e50;text-align:center;width:60px;margin:2px;vertical-align:top;',
+        'day_pill_today': 'display:inline-block;padding:8px 6px;border-radius:20px;font-size:12px;font-weight:700;color:#ffffff;background-color:#e67e22;border:2px solid #e67e22;text-align:center;width:60px;margin:2px;vertical-align:top;',
+        'day_pill_past': 'display:inline-block;padding:8px 6px;border-radius:20px;font-size:12px;font-weight:600;color:#5a6a7a;border:2px solid #2c3e50;text-align:center;width:60px;margin:2px;vertical-align:top;',
+        'day_pill_label': 'display:block;font-size:10px;color:#5f7080;margin-top:2px;',
+        'day_pill_label_today': 'display:block;font-size:10px;color:#ffffff;margin-top:2px;',
+        'day_pill_label_past': 'display:block;font-size:10px;color:#475663;margin-top:2px;',
+        'today_banner': 'background-color:#e67e22;padding:22px 30px;text-align:center;',
+        'today_banner_h2': 'margin:0 0 6px 0;font-size:18px;font-weight:700;color:#ffffff;',
+        'today_elder': 'margin:4px 0;font-size:20px;font-weight:700;color:#ffffff;',
+        'today_count': 'margin:4px 0 0 0;font-size:13px;color:#fde8d0;',
+        'content': 'padding:24px 30px;color:#333333;font-size:15px;line-height:1.7;',
+        'section_label': 'font-size:12px;font-weight:700;color:#555555;text-transform:uppercase;letter-spacing:0.6px;margin:20px 0 10px 0;',
+        'table': 'width:100%;border-collapse:collapse;margin:10px 0;border:1px solid #ddd;',
+        'th': 'background:#3498db;color:#ffffff;padding:10px 12px;text-align:left;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;',
+        'td': 'padding:10px 12px;border-bottom:1px solid #e8eaed;font-size:14px;color:#333333;',
+        'td_alt': 'padding:10px 12px;border-bottom:1px solid #e8eaed;font-size:14px;color:#333333;background:#f8f9fa;',
+        'td_today': 'padding:10px 12px;border-bottom:1px solid #e8eaed;font-size:14px;color:#d35400;font-weight:700;background:#fef3e2;border-left:4px solid #e67e22;',
+        'elder_block': 'margin:12px 0;border-left:4px solid #3498db;padding:12px 16px;background:#f8f9fa;',
+        'elder_block_today': 'margin:12px 0;border-left:4px solid #e67e22;padding:14px 18px;background:#fef9f3;',
         'elder_name': 'font-size:15px;font-weight:700;color:#2c3e50;margin:0 0 2px 0;',
         'elder_count': 'font-size:13px;color:#777777;margin:0 0 8px 0;font-style:italic;',
-        'family_item': 'padding:2px 0;font-size:14px;color:#444444;',
-        'divider': 'height:1px;background:#e0e3e7;margin:18px 0;',
-        'footer': 'padding:16px 30px;text-align:center;background:#f7f8f9;border-top:1px solid #e0e3e7;',
-        'footer_link': 'display:inline-block;background:#2c3e50;color:#ffffff;text-decoration:none;padding:8px 20px;border-radius:4px;font-size:13px;font-weight:600;',
-        'footer_text': 'margin:8px 0 0 0;font-size:12px;color:#999999;',
+        'family_item': 'padding:3px 0;font-size:14px;color:#444444;',
+        'divider': 'height:1px;background:#e0e3e7;margin:20px 0;',
+        'footer': 'padding:18px 30px;text-align:center;background:#f7f8f9;border-top:1px solid #e0e3e7;',
+        'footer_link': 'display:inline-block;background:#2c3e50;color:#ffffff;text-decoration:none;padding:10px 24px;border-radius:4px;font-size:13px;font-weight:600;',
+        'footer_text': 'margin:10px 0 0 0;font-size:12px;color:#999999;',
     }
 
 
 def _build_combined_email_html(today, today_name, week_num, monday, schedule, elder_assignments):
     """Build a single combined HTML email for the day.
 
-    Layout matches the website (GitHub Pages) design:
+    Layout mirrors the website (GitHub Pages) design:
       1. Header: Church name (large), "Elder Prayer Schedule - Week X", date range
-      2. Day navigation bar: Day pills with today highlighted in orange
-      3. Today's Prayer Focus banner: Orange background, elder name, family count
-      4. Today's prayer list: Elder block(s) with family lists
-      5. Week schedule table: All 7 days, today's row highlighted
-      6. On Mondays only: Full prayer lists for every elder
-      7. Footer: Link to online schedule
+      2. Day navigation bar: Pill buttons for each day, today highlighted orange
+      3. Today's Prayer List banner: Orange bar with elder name and family count
+      4. Today's families: Elder block(s) with numbered family lists
+      5. Week schedule table: All 7 days, today's row highlighted with orange accent
+      6. On Mondays only: Full prayer lists for every elder that week
+      7. Footer: Link to view full schedule online
     """
     s = _email_styles()
     is_monday = today.weekday() == 0
@@ -1157,12 +1165,12 @@ def _build_combined_email_html(today, today_name, week_num, monday, schedule, el
             label_style = s['day_pill_label_today']
         elif is_past:
             pill_style = s['day_pill_past']
-            label_style = s['day_pill_label']
+            label_style = s['day_pill_label_past']
         else:
             pill_style = s['day_pill']
             label_style = s['day_pill_label']
 
-        day_pills += f"""<div style="{pill_style}">{day[:3]}<span style="{label_style}">{current_date.strftime('%b %d')}</span></div>\n"""
+        day_pills += f'<div style="{pill_style}">{day[:3]}<span style="{label_style}">{current_date.strftime("%b %d")}</span></div>\n'
         current_date += timedelta(days=1)
 
     # --- Today's prayer list sections ---
@@ -1231,31 +1239,31 @@ def _build_combined_email_html(today, today_name, week_num, monday, schedule, el
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="{s['body']}">
 <div style="{s['wrapper']}">
 <div style="{s['container']}">
 
-    <!-- Header (matches website) -->
+    <!-- Header -->
     <div style="{s['header']}">
         <h1 style="{s['header_h1']}">Crossville Church of Christ</h1>
         <h2 style="{s['header_h2']}">Elder Prayer Schedule - Week {week_num}</h2>
         <p style="{s['header_sub']}">{date_range}</p>
     </div>
 
-    <!-- Day Navigation Bar (matches website day pills) -->
+    <!-- Day Navigation Bar -->
     <div style="{s['day_nav']}">
         {day_pills}
     </div>
 
-    <!-- Today's Prayer Focus Banner (matches website orange banner) -->
+    <!-- Today's Prayer List Banner -->
     <div style="{s['today_banner']}">
-        <h2 style="{s['today_banner_h2']}">Today's Prayer Focus</h2>
+        <h2 style="{s['today_banner_h2']}">Today's Prayer List</h2>
         <p style="{s['today_elder']}">{elder_names_display}</p>
         <p style="{s['today_count']}">{today_family_count} families being prayed for today</p>
     </div>
 
-    <!-- Today's Prayer List -->
+    <!-- Today's Families -->
     <div style="{s['content']}">
         <p style="{s['section_label']}">Today's Families</p>
         {today_prayer_sections}
@@ -1275,7 +1283,7 @@ def _build_combined_email_html(today, today_name, week_num, monday, schedule, el
 
         {full_prayer_lists}
 
-        <p style="text-align:center;color:#999999;font-size:13px;margin:14px 0 0 0;">
+        <p style="text-align:center;color:#999999;font-size:13px;margin:16px 0 0 0;">
             Thank you for faithfully praying for our church family.
         </p>
     </div>
