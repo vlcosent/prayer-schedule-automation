@@ -1101,9 +1101,9 @@ def _email_styles():
         'day_pill': 'display:inline-block;padding:8px 6px;border-radius:20px;font-size:12px;font-weight:600;color:#8899a6;border:2px solid #2c3e50;text-align:center;width:60px;margin:2px;vertical-align:top;',
         'day_pill_today': 'display:inline-block;padding:8px 6px;border-radius:20px;font-size:12px;font-weight:700;color:#ffffff;background-color:#e67e22;border:2px solid #e67e22;text-align:center;width:60px;margin:2px;vertical-align:top;',
         'day_pill_past': 'display:inline-block;padding:8px 6px;border-radius:20px;font-size:12px;font-weight:600;color:#5a6a7a;border:2px solid #2c3e50;text-align:center;width:60px;margin:2px;vertical-align:top;',
-        'day_pill_label': 'display:block;font-size:10px;color:#5f7080;margin-top:2px;',
+        'day_pill_label': 'display:block;font-size:10px;color:#a0adb8;margin-top:2px;',
         'day_pill_label_today': 'display:block;font-size:10px;color:#ffffff;margin-top:2px;',
-        'day_pill_label_past': 'display:block;font-size:10px;color:#475663;margin-top:2px;',
+        'day_pill_label_past': 'display:block;font-size:10px;color:#6d7d8a;margin-top:2px;',
         'today_banner': 'background-color:#e67e22;padding:22px 30px;text-align:center;',
         'today_banner_h2': 'margin:0 0 6px 0;font-size:18px;font-weight:700;color:#ffffff;',
         'today_elder': 'margin:4px 0;font-size:20px;font-weight:700;color:#ffffff;',
@@ -1115,6 +1115,7 @@ def _email_styles():
         'td': 'padding:10px 12px;border-bottom:1px solid #e8eaed;font-size:14px;color:#333333;',
         'td_alt': 'padding:10px 12px;border-bottom:1px solid #e8eaed;font-size:14px;color:#333333;background:#f8f9fa;',
         'td_today': 'padding:10px 12px;border-bottom:1px solid #e8eaed;font-size:14px;color:#d35400;font-weight:700;background:#fef3e2;border-left:4px solid #e67e22;',
+        'td_today_inner': 'padding:10px 12px;border-bottom:1px solid #e8eaed;font-size:14px;color:#d35400;font-weight:700;background:#fef3e2;',
         'elder_block': 'margin:12px 0;border-left:4px solid #3498db;padding:12px 16px;background:#f8f9fa;',
         'elder_block_today': 'margin:12px 0;border-left:4px solid #e67e22;padding:14px 18px;background:#fef9f3;',
         'elder_name': 'font-size:15px;font-weight:700;color:#2c3e50;margin:0 0 2px 0;',
@@ -1199,17 +1200,21 @@ def _build_combined_email_html(today, today_name, week_num, monday, schedule, el
 
         is_today = (day == today_name)
         if is_today:
-            td_style = s['td_today']
+            # First cell gets left border accent; inner cells get same style without border
+            td_first = s['td_today']
+            td_rest = s['td_today_inner']
         elif i % 2 == 1:
-            td_style = s['td_alt']
+            td_first = s['td_alt']
+            td_rest = s['td_alt']
         else:
-            td_style = s['td']
+            td_first = s['td']
+            td_rest = s['td']
 
         arrow = "&#9654; " if is_today else ""
         table_rows += f"""<tr>
-            <td style="{td_style}">{arrow}<strong>{day}</strong></td>
-            <td style="{td_style}">{date_str}</td>
-            <td style="{td_style}">{elder_names_row}</td>
+            <td style="{td_first}">{arrow}<strong>{day}</strong></td>
+            <td style="{td_rest}">{date_str}</td>
+            <td style="{td_rest}">{elder_names_row}</td>
         </tr>"""
         current_date += timedelta(days=1)
 
