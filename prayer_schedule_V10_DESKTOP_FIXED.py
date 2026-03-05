@@ -1252,8 +1252,8 @@ def _build_combined_email_html(today, today_name, week_num, monday, schedule, el
     <!-- Header -->
     <div style="{s['header']}">
         <h1 style="{s['header_h1']}">Crossville Church of Christ</h1>
-        <h2 style="{s['header_h2']}">Elder Prayer Schedule - Week {week_num}</h2>
-        <p style="{s['header_sub']}">{date_range}</p>
+        <h2 style="{s['header_h2']}">Daily Prayer Reminder</h2>
+        <p style="{s['header_sub']}">{today.strftime('%A, %B %d, %Y')}: {elder_names_display} &mdash; Week {week_num}</p>
     </div>
 
     <!-- Day Navigation Bar -->
@@ -1386,12 +1386,13 @@ def send_daily_combined_email(today, week_num, monday, elder_assignments):
         msg = MIMEMultipart('alternative')
         msg['From'] = SENDER_EMAIL
         msg['To'] = ', '.join(recipients)
-        msg['Subject'] = f"Prayer List - {today_name}: {elder_names} (Week {week_num})"
+        msg['Subject'] = f"Daily Prayer Reminder- {today_formatted}: {elder_names}"
         msg['Date'] = formatdate(localtime=True)
 
         # Plain text fallback
         plain_body = f"""Crossville Church of Christ
-{today_name}, {today_formatted} - Week {week_num} ({date_range})
+Daily Prayer Reminder - {today_formatted}: {elder_names}
+Week {week_num} ({date_range})
 
 Today's Elder: {elder_names}
 {elder_details}
