@@ -184,7 +184,7 @@ Bow,Katherine
 Brady,Donald & Donna
 Brewer,Sandra
 Brock,Lilly
-Brock,"Philip & Brooke; Olliver (Ollie)"
+Brock,"Philip & Brooke; Olliver (Ollie), Thea"
 Brown,Connie
 Brown,Earl
 Brown,Eddie
