@@ -86,18 +86,7 @@ SMTP_SERVER = 'smtp.gmail.com'
 SMTP_PORT = 587
 SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'churchprayerlistelders@gmail.com')
 SENDER_PASSWORD = os.environ.get('SENDER_PASSWORD', '')
-RECIPIENT_EMAILS = os.environ.get('RECIPIENT_EMAILS', ','.join([
-    'elders@crossvillechurchofchrist.org',
-    'carolsparks.cs@gmail.com',
-    'frankbo72@gmail.com',           # Frank
-    'kfair232@gmail.com',            # Kyle
-    'laccafox@gmail.com',            # L.A., Jr.
-    'alanhjudd@gmail.com',           # Alan
-    'lovedayj@frontiernet.net',      # Jonathan
-    'larrymcduffee@gmail.com',       # Larry
-    'brianmclaughlin423@gmail.com',  # Brian
-    'jbw@benlomand.net',             # Jerry
-]))
+RECIPIENT_EMAILS = os.environ.get('RECIPIENT_EMAILS', '')
 
 
 # US Central Time via IANA timezone database (stdlib since Python 3.9).
@@ -1412,7 +1401,7 @@ View the full schedule online: https://vlcosent.github.io/prayer-schedule-automa
         # Connect to Gmail SMTP server
         print(f"   [EMAIL] Connecting to {SMTP_SERVER}:{SMTP_PORT}...")
         print(f"   [EMAIL] Email date: {today_formatted}")
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30)
         server.starttls()
 
         # Login
@@ -1524,7 +1513,8 @@ def main():
         today_name = day_names[today.weekday()]
 
         log_activity(f"Starting prayer schedule system ({today_name}) (VERSION 11 - COMBINED EMAIL)")
-        print(f"\n[DATE] Server UTC time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
+        from datetime import timezone
+        print(f"\n[DATE] Server UTC time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"[DATE] Central Time (church local): {today.strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"[DATE] Today: {today_name}, {today.strftime('%B %d, %Y')}")
 
@@ -1619,7 +1609,8 @@ def main():
             print(f"\nSending combined daily email for {today_name}...")
             email_ok = send_daily_combined_email(today, week_num, monday, elder_assignments)
             if not email_ok:
-                print("   [WARNING] Email delivery failed - schedule files were still saved")
+                print("   [ERROR] Email delivery failed - schedule files were still saved")
+                return False
         else:
             print("\nEmail delivery is disabled (set EMAIL_ENABLED=true to send)")
 
