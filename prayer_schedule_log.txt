@@ -143,3 +143,6 @@
 [2026-04-03 03:33:32] Email sent for Friday, April 03, 2026 to 1 recipient(s)
 [2026-04-03 05:31:13] Starting prayer schedule system (Friday) (VERSION 11 - COMBINED EMAIL)
 [2026-04-03 05:31:13] Daily update for Friday, Week 14
+[2026-04-03 13:39:11] Starting prayer schedule system (Friday) (VERSION 11 - COMBINED EMAIL)
+[2026-04-03 13:39:11] Daily update for Friday, Week 14
+[2026-04-03 13:39:12] Email FAILED (auth error): (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 5a478bee46e88-2ca78df5ec7sm5106259eec.3 - gsmtp')
