@@ -80,7 +80,7 @@ jobs:
         python prayer_schedule_V10_DESKTOP_FIXED.py
 
     - name: Commit and push generated files
-      if: steps.schedule_gate.outputs.skip != 'true'
+      if: always() && steps.schedule_gate.outputs.skip != 'true'
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "GitHub Actions Bot"
@@ -89,7 +89,7 @@ jobs:
         git push || echo "No changes to push"
 
     - name: Upload schedule artifacts
-      if: steps.schedule_gate.outputs.skip != 'true'
+      if: always() && steps.schedule_gate.outputs.skip != 'true'
       uses: actions/upload-artifact@v4
       with:
         name: prayer-schedule-${{ github.run_number }}

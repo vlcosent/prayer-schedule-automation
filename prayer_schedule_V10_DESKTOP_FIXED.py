@@ -43,6 +43,7 @@ from io import StringIO
 from datetime import datetime, timedelta
 import os
 import sys
+import time
 import traceback
 import shutil
 import re
@@ -1398,34 +1399,52 @@ View the full schedule online: https://vlcosent.github.io/prayer-schedule-automa
         )
         msg.attach(MIMEText(html_body, 'html'))
 
-        # Connect to Gmail SMTP server
-        print(f"   [EMAIL] Connecting to {SMTP_SERVER}:{SMTP_PORT}...")
-        print(f"   [EMAIL] Email date: {today_formatted}")
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30)
-        server.starttls()
+        # Connect to Gmail SMTP server with retry for transient failures
+        max_retries = 3
+        last_error = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                print(f"   [EMAIL] Connecting to {SMTP_SERVER}:{SMTP_PORT} (attempt {attempt}/{max_retries})...")
+                print(f"   [EMAIL] Email date: {today_formatted}")
+                server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30)
+                server.starttls()
 
-        # Login
-        print(f"   [EMAIL] Logging in as {SENDER_EMAIL}...")
-        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+                # Login
+                print(f"   [EMAIL] Logging in as {SENDER_EMAIL}...")
+                server.login(SENDER_EMAIL, SENDER_PASSWORD)
 
-        # Send email
-        print(f"   [EMAIL] Sending to: {', '.join(recipients)}")
-        server.send_message(msg)
-        server.quit()
+                # Send email
+                print(f"   [EMAIL] Sending to: {', '.join(recipients)}")
+                server.send_message(msg)
+                server.quit()
 
-        print(f"   [OK] Daily email sent for {today_name}, {today.strftime('%B %d, %Y')} to {len(recipients)} recipient(s)")
-        return True
+                print(f"   [OK] Daily email sent for {today_name}, {today.strftime('%B %d, %Y')} to {len(recipients)} recipient(s)")
+                log_activity(f"Email sent for {today_name}, {today.strftime('%B %d, %Y')} to {len(recipients)} recipient(s)")
+                return True
 
-    except smtplib.SMTPAuthenticationError as e:
-        print(f"   [ERROR] Email authentication failed: {e}")
-        print(f"   [INFO] Please verify SENDER_PASSWORD is a valid Gmail App Password")
+            except smtplib.SMTPAuthenticationError as e:
+                # Auth errors won't resolve with retries
+                print(f"   [ERROR] Email authentication failed: {e}")
+                print(f"   [INFO] Please verify SENDER_PASSWORD is a valid Gmail App Password")
+                log_activity(f"Email FAILED (auth error): {e}")
+                return False
+            except (smtplib.SMTPException, OSError) as e:
+                last_error = e
+                print(f"   [WARNING] Attempt {attempt} failed: {e}")
+                if attempt < max_retries:
+                    wait = 2 ** attempt  # 2s, 4s
+                    print(f"   [INFO] Retrying in {wait}s...")
+                    time.sleep(wait)
+
+        # All retries exhausted
+        print(f"   [ERROR] Email delivery failed after {max_retries} attempts: {last_error}")
+        log_activity(f"Email FAILED after {max_retries} attempts: {last_error}")
         return False
-    except smtplib.SMTPException as e:
-        print(f"   [ERROR] SMTP error occurred: {e}")
-        return False
+
     except Exception as e:
         print(f"   [ERROR] Failed to send email: {e}")
         traceback.print_exc()
+        log_activity(f"Email FAILED (unexpected error): {e}")
         return False
 
 def update_desktop_files(html_content, text_content):
