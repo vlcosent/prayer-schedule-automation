@@ -1414,18 +1414,22 @@ View the full schedule online: https://vlcosent.github.io/prayer-schedule-automa
         server.quit()
 
         print(f"   [OK] Daily email sent for {today_name}, {today.strftime('%B %d, %Y')} to {len(recipients)} recipient(s)")
+        log_activity(f"Email sent for {today_name}, {today.strftime('%B %d, %Y')} to {len(recipients)} recipient(s)")
         return True
 
     except smtplib.SMTPAuthenticationError as e:
         print(f"   [ERROR] Email authentication failed: {e}")
         print(f"   [INFO] Please verify SENDER_PASSWORD is a valid Gmail App Password")
+        log_activity(f"Email FAILED (auth error): {e}")
         return False
     except smtplib.SMTPException as e:
         print(f"   [ERROR] SMTP error occurred: {e}")
+        log_activity(f"Email FAILED (SMTP error): {e}")
         return False
     except Exception as e:
         print(f"   [ERROR] Failed to send email: {e}")
         traceback.print_exc()
+        log_activity(f"Email FAILED (unexpected error): {e}")
         return False
 
 def update_desktop_files(html_content, text_content):
