@@ -149,3 +149,6 @@
 [2026-04-04 13:29:58] Starting prayer schedule system (Saturday) (VERSION 11 - COMBINED EMAIL)
 [2026-04-04 13:29:58] Daily update for Saturday, Week 14
 [2026-04-04 13:29:59] Email FAILED (auth error): (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials d75a77b69052e-50d4b93dd05sm67284031cf.9 - gsmtp')
+[2026-04-05 13:30:56] Starting prayer schedule system (Sunday) (VERSION 11 - COMBINED EMAIL)
+[2026-04-05 13:30:56] Daily update for Sunday, Week 14
+[2026-04-05 13:30:57] Email FAILED (auth error): (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials a92af1059eb24-12bedd6901esm8344326c88.5 - gsmtp')
