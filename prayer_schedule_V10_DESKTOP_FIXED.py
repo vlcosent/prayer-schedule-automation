@@ -1650,8 +1650,8 @@ def main():
             print(f"\nSending combined daily email for {today_name}...")
             email_ok = send_daily_combined_email(today, week_num, monday, elder_assignments)
             if not email_ok:
-                print("   [ERROR] Email delivery failed - schedule files were still saved")
-                return False
+                print("   [WARNING] Email delivery failed - schedule files were still saved")
+                print("   [INFO] Continuing so generated files can be committed")
         else:
             print("\nEmail delivery is disabled (set EMAIL_ENABLED=true to send)")
 
