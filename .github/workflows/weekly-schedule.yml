@@ -59,11 +59,11 @@ jobs:
 
     - name: Checkout repository
       if: steps.schedule_gate.outputs.skip != 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Set up Python
       if: steps.schedule_gate.outputs.skip != 'true'
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.11'
 
@@ -90,7 +90,7 @@ jobs:
 
     - name: Upload schedule artifacts
       if: always() && steps.schedule_gate.outputs.skip != 'true'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: prayer-schedule-${{ github.run_number }}
         path: |
@@ -131,7 +131,7 @@ jobs:
       run: sleep 30
 
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         ref: main
 
@@ -144,15 +144,15 @@ jobs:
         cp Prayer_Schedule_Current_Week.txt _site/ || true
 
     - name: Setup Pages
-      uses: actions/configure-pages@v5
+      uses: actions/configure-pages@v6
       with:
         enablement: true
 
     - name: Upload Pages artifact
-      uses: actions/upload-pages-artifact@v3
+      uses: actions/upload-pages-artifact@v4
       with:
         path: '_site'
 
     - name: Deploy to GitHub Pages
       id: deployment
-      uses: actions/deploy-pages@v4
+      uses: actions/deploy-pages@v5
