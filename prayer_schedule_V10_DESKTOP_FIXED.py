@@ -50,7 +50,7 @@ import re
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from email.utils import formatdate
+from email.utils import formatdate, make_msgid
 
 # ============== CONFIGURATION SECTION ==============
 # FIXED: Use expanduser to get desktop path dynamically
@@ -1084,13 +1084,13 @@ def _email_styles():
         'wrapper': 'width:100%;background-color:#f5f5f5;padding:30px 0;',
         'container': 'max-width:620px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #d0d4d9;',
         'header': 'background:#2c3e50;color:#ffffff;padding:28px 30px 22px 30px;text-align:center;',
-        'header_h1': 'margin:0 0 8px 0;font-size:26px;font-weight:700;color:#ffffff;letter-spacing:0.3px;',
+        'header_h1': 'margin:0 0 8px 0;font-size:26px;font-weight:700;color:#ffffff;',
         'header_h2': 'margin:0 0 6px 0;font-size:19px;font-weight:600;color:#ffffff;',
         'header_sub': 'margin:0;font-size:14px;font-weight:700;color:#b0bec5;',
         'day_nav': 'background:#1a252f;padding:14px 8px;text-align:center;font-size:0;',
-        'day_pill': 'display:inline-block;padding:8px 6px;border-radius:20px;font-size:12px;font-weight:600;color:#8899a6;border:2px solid #2c3e50;text-align:center;width:60px;margin:2px;vertical-align:top;',
-        'day_pill_today': 'display:inline-block;padding:8px 6px;border-radius:20px;font-size:12px;font-weight:700;color:#ffffff;background-color:#e67e22;border:2px solid #e67e22;text-align:center;width:60px;margin:2px;vertical-align:top;',
-        'day_pill_past': 'display:inline-block;padding:8px 6px;border-radius:20px;font-size:12px;font-weight:600;color:#5a6a7a;border:2px solid #2c3e50;text-align:center;width:60px;margin:2px;vertical-align:top;',
+        'day_pill': 'display:inline-block;padding:8px 6px;border-radius:20px;font-size:12px;font-weight:600;color:#8899a6;border:2px solid #2c3e50;text-align:center;width:60px;margin:2px;',
+        'day_pill_today': 'display:inline-block;padding:8px 6px;border-radius:20px;font-size:12px;font-weight:700;color:#ffffff;background-color:#e67e22;border:2px solid #e67e22;text-align:center;width:60px;margin:2px;',
+        'day_pill_past': 'display:inline-block;padding:8px 6px;border-radius:20px;font-size:12px;font-weight:600;color:#5a6a7a;border:2px solid #2c3e50;text-align:center;width:60px;margin:2px;',
         'day_pill_label': 'display:block;font-size:10px;color:#a0adb8;margin-top:2px;',
         'day_pill_label_today': 'display:block;font-size:10px;color:#ffffff;margin-top:2px;',
         'day_pill_label_past': 'display:block;font-size:10px;color:#6d7d8a;margin-top:2px;',
@@ -1099,9 +1099,9 @@ def _email_styles():
         'today_elder': 'margin:4px 0;font-size:20px;font-weight:700;color:#ffffff;',
         'today_count': 'margin:4px 0 0 0;font-size:13px;color:#fde8d0;',
         'content': 'padding:24px 30px;color:#333333;font-size:15px;line-height:1.7;',
-        'section_label': 'font-size:12px;font-weight:700;color:#555555;text-transform:uppercase;letter-spacing:0.6px;margin:20px 0 10px 0;',
+        'section_label': 'font-size:12px;font-weight:700;color:#555555;margin:20px 0 10px 0;',
         'table': 'width:100%;border-collapse:collapse;margin:10px 0;border:1px solid #ddd;',
-        'th': 'background:#3498db;color:#ffffff;padding:10px 12px;text-align:left;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;',
+        'th': 'background:#3498db;color:#ffffff;padding:10px 12px;text-align:left;font-size:12px;font-weight:600;',
         'td': 'padding:10px 12px;border-bottom:1px solid #e8eaed;font-size:14px;color:#333333;',
         'td_alt': 'padding:10px 12px;border-bottom:1px solid #e8eaed;font-size:14px;color:#333333;background:#f8f9fa;',
         'td_today': 'padding:10px 12px;border-bottom:1px solid #e8eaed;font-size:14px;color:#d35400;font-weight:700;background:#fef3e2;border-left:4px solid #e67e22;',
@@ -1211,7 +1211,7 @@ def _build_combined_email_html(today, today_name, week_num, monday, schedule, el
     # --- Monday-only: full prayer lists for all elders ---
     full_prayer_lists = ""
     if is_monday:
-        full_prayer_lists += f'<p style="{s["section_label"]}">All Prayer Lists This Week</p>'
+        full_prayer_lists += f'<p style="{s["section_label"]}">ALL PRAYER LISTS THIS WEEK</p>'
         current_date = monday
         for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]:
             elders = schedule[day]
@@ -1260,18 +1260,18 @@ def _build_combined_email_html(today, today_name, week_num, monday, schedule, el
 
     <!-- Today's Families -->
     <div style="{s['content']}">
-        <p style="{s['section_label']}">Today's Families</p>
+        <p style="{s['section_label']}">TODAY'S FAMILIES</p>
         {today_prayer_sections}
 
         <div style="{s['divider']}"></div>
 
         <!-- Week Schedule Table -->
-        <p style="{s['section_label']}">This Week at a Glance</p>
+        <p style="{s['section_label']}">THIS WEEK AT A GLANCE</p>
         <table style="{s['table']}">
             <tr>
-                <th style="{s['th']}">Day</th>
-                <th style="{s['th']}">Date</th>
-                <th style="{s['th']}">Elder(s)</th>
+                <th style="{s['th']}">DAY</th>
+                <th style="{s['th']}">DATE</th>
+                <th style="{s['th']}">ELDER(S)</th>
             </tr>
             {table_rows}
         </table>
@@ -1372,14 +1372,8 @@ def send_daily_combined_email(today, week_num, monday, elder_assignments):
             week_overview += f"{marker} {day:<9} {current_date.strftime('%b %d'):<10} {' & '.join(elders)}\n"
             current_date += timedelta(days=1)
 
-        # Create email message
-        msg = MIMEMultipart('alternative')
-        msg['From'] = SENDER_EMAIL
-        msg['To'] = ', '.join(recipients)
-        msg['Subject'] = f"Daily Prayer Reminder- {today_formatted}: {elder_names}"
-        msg['Date'] = formatdate(localtime=True)
-
-        # Plain text fallback
+        # Build email content once (reused for each recipient)
+        subject = f"Daily Prayer Reminder- {today_formatted}: {elder_names}"
         plain_body = f"""Crossville Church of Christ
 Daily Prayer Reminder - {today_formatted}: {elder_names}
 Week {week_num} ({date_range})
@@ -1391,55 +1385,83 @@ Please keep these families in your prayers.
 
 View the full schedule online: https://vlcosent.github.io/prayer-schedule-automation/
 """
-        msg.attach(MIMEText(plain_body, 'plain'))
-
-        # HTML version
         html_body = _build_combined_email_html(
             today, today_name, week_num, monday, schedule, elder_assignments
         )
-        msg.attach(MIMEText(html_body, 'html'))
 
         # Connect to Gmail SMTP server with retry for transient failures
         max_retries = 3
         last_error = None
+        server = None
         for attempt in range(1, max_retries + 1):
             try:
                 print(f"   [EMAIL] Connecting to {SMTP_SERVER}:{SMTP_PORT} (attempt {attempt}/{max_retries})...")
                 print(f"   [EMAIL] Email date: {today_formatted}")
                 server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30)
                 server.starttls()
-
-                # Login
                 print(f"   [EMAIL] Logging in as {SENDER_EMAIL}...")
                 server.login(SENDER_EMAIL, SENDER_PASSWORD)
-
-                # Send email
-                print(f"   [EMAIL] Sending to: {', '.join(recipients)}")
-                server.send_message(msg)
-                server.quit()
-
-                print(f"   [OK] Daily email sent for {today_name}, {today.strftime('%B %d, %Y')} to {len(recipients)} recipient(s)")
-                log_activity(f"Email sent for {today_name}, {today.strftime('%B %d, %Y')} to {len(recipients)} recipient(s)")
-                return True
+                break  # Connected successfully
 
             except smtplib.SMTPAuthenticationError as e:
-                # Auth errors won't resolve with retries
                 print(f"   [ERROR] Email authentication failed: {e}")
                 print(f"   [INFO] Please verify SENDER_PASSWORD is a valid Gmail App Password")
                 log_activity(f"Email FAILED (auth error): {e}")
                 return False
             except (smtplib.SMTPException, OSError) as e:
                 last_error = e
-                print(f"   [WARNING] Attempt {attempt} failed: {e}")
+                print(f"   [WARNING] Connection attempt {attempt} failed: {e}")
                 if attempt < max_retries:
                     wait = 2 ** attempt  # 2s, 4s
                     print(f"   [INFO] Retrying in {wait}s...")
                     time.sleep(wait)
+        else:
+            # All connection retries exhausted
+            print(f"   [ERROR] SMTP connection failed after {max_retries} attempts: {last_error}")
+            log_activity(f"Email FAILED (connection) after {max_retries} attempts: {last_error}")
+            return False
 
-        # All retries exhausted
-        print(f"   [ERROR] Email delivery failed after {max_retries} attempts: {last_error}")
-        log_activity(f"Email FAILED after {max_retries} attempts: {last_error}")
-        return False
+        # Send individually to each recipient for better deliverability
+        succeeded = []
+        failed = []
+        try:
+            for recipient in recipients:
+                try:
+                    msg = MIMEMultipart('alternative')
+                    msg['From'] = SENDER_EMAIL
+                    msg['To'] = recipient
+                    msg['Subject'] = subject
+                    msg['Date'] = formatdate(localtime=True)
+                    msg['Message-ID'] = make_msgid(domain='gmail.com')
+                    msg['Reply-To'] = SENDER_EMAIL
+                    msg['X-Mailer'] = 'Crossville-CoC-Prayer-Schedule/1.0'
+
+                    msg.attach(MIMEText(plain_body, 'plain'))
+                    msg.attach(MIMEText(html_body, 'html'))
+
+                    server.send_message(msg)
+                    succeeded.append(recipient)
+                    print(f"   [OK] Sent to {recipient}")
+                except (smtplib.SMTPRecipientsRefused, smtplib.SMTPDataError) as e:
+                    failed.append(recipient)
+                    print(f"   [WARNING] Failed to send to {recipient}: {e}")
+        finally:
+            server.quit()
+
+        # Report results
+        if failed:
+            print(f"   [WARNING] Failed recipients ({len(failed)}): {', '.join(failed)}")
+            log_activity(f"Email partially sent for {today_name}, {today.strftime('%B %d, %Y')}: "
+                         f"{len(succeeded)} succeeded, {len(failed)} failed ({', '.join(failed)})")
+        if succeeded:
+            print(f"   [OK] Daily email sent for {today_name}, {today.strftime('%B %d, %Y')} to {len(succeeded)} of {len(recipients)} recipient(s)")
+            if not failed:
+                log_activity(f"Email sent for {today_name}, {today.strftime('%B %d, %Y')} to {len(succeeded)} recipient(s)")
+            return True
+        else:
+            print(f"   [ERROR] Email delivery failed for all {len(recipients)} recipients")
+            log_activity(f"Email FAILED for all recipients on {today_name}, {today.strftime('%B %d, %Y')}")
+            return False
 
     except Exception as e:
         print(f"   [ERROR] Failed to send email: {e}")
