@@ -90,7 +90,7 @@ jobs:
 
     - name: Upload schedule artifacts
       if: always() && steps.schedule_gate.outputs.skip != 'true'
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@v6
       with:
         name: prayer-schedule-${{ github.run_number }}
         path: |
