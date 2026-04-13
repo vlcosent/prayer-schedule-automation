@@ -203,3 +203,6 @@
 [2026-04-12 13:35:26] Starting prayer schedule system (Sunday) (VERSION 11 - COMBINED EMAIL)
 [2026-04-12 13:35:26] Daily update for Sunday, Week 15
 [2026-04-12 13:35:37] Email sent for Sunday, April 12, 2026 to 10 recipient(s)
+[2026-04-13 14:09:32] Starting prayer schedule system (Monday) (VERSION 11 - COMBINED EMAIL)
+[2026-04-13 14:09:32] Generated Week 16 schedule (Monday full run)
+[2026-04-13 14:09:43] Email sent for Monday, April 13, 2026 to 10 recipient(s)
