@@ -71,6 +71,16 @@ jobs:
       with:
         python-version: '3.11'
 
+    - name: Install test dependencies
+      if: steps.schedule_gate.outputs.skip != 'true'
+      run: python -m pip install --upgrade pip pytest
+
+    - name: Run pytest suite
+      if: steps.schedule_gate.outputs.skip != 'true'
+      env:
+        EMAIL_ENABLED: 'false'
+      run: python -m pytest tests/ -q
+
     - name: Run prayer schedule generator
       if: steps.schedule_gate.outputs.skip != 'true'
       env:

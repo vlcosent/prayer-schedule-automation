@@ -20,3 +20,6 @@ index.html
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Local Claude Code worktree storage
+.claude/
