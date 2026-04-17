@@ -85,9 +85,33 @@ BASE_DIR = DESKTOP_DIR
 EMAIL_ENABLED = os.environ.get('EMAIL_ENABLED', 'false').lower() == 'true'
 SMTP_SERVER = 'smtp.gmail.com'
 SMTP_PORT = 587
-SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'churchprayerlistelders@gmail.com')
+SENDER_EMAIL = os.environ.get('SENDER_EMAIL', '')
 SENDER_PASSWORD = os.environ.get('SENDER_PASSWORD', '')
 RECIPIENT_EMAILS = os.environ.get('RECIPIENT_EMAILS', '')
+
+
+def validate_email_config():
+    """Ensure email env vars are set when EMAIL_ENABLED=true.
+
+    Raises ValueError on any misconfiguration so the failure is loud
+    (never silently send from an unintended account).
+    """
+    if not EMAIL_ENABLED:
+        return
+    missing = []
+    if not SENDER_EMAIL:
+        missing.append('SENDER_EMAIL')
+    elif '@' not in SENDER_EMAIL:
+        raise ValueError(f"SENDER_EMAIL is not a valid address: {SENDER_EMAIL!r}")
+    if not SENDER_PASSWORD:
+        missing.append('SENDER_PASSWORD')
+    if not RECIPIENT_EMAILS:
+        missing.append('RECIPIENT_EMAILS')
+    if missing:
+        raise ValueError(
+            "EMAIL_ENABLED=true but required env vars are unset: "
+            + ', '.join(missing)
+        )
 
 
 # US Central Time via IANA timezone database (stdlib since Python 3.9).
@@ -154,6 +178,21 @@ ELDER_FAMILIES = {
     "Kyle Fairman": "Fairman, Kyle & Leigh Ann; Wyatt, Audrey",
     "L.A. Fox": "Fox, L.A. & Cindy",
     "Larry McDuffee": "McDuffee, Larry & Linda"
+}
+
+# Reassignment rules for cycle positions where an elder's pool contains their own family.
+# Moved to module scope so it can be validated at startup (vs. hidden inside a function).
+# Each target is "adjacency-safe": the reassigned family is not in that elder's pool
+# in the previous or next week, preserving the 100%-new-families-per-week invariant.
+FIXED_REASSIGNMENT_MAP = {
+    1: {"Alan Judd": "Jerry Wood",               # Alan(19) filtered -> Jerry(20->21) SAFE
+        "Frank Bohannon": "Jonathan Loveday",    # Frank(19) filtered -> Jonathan(20->21) SAFE
+        "Kyle Fairman": "Brian McLaughlin"},     # Kyle(19) filtered -> Brian(20->21) SAFE
+    4: {"Brian McLaughlin": "Larry McDuffee",    # Brian(19) filtered -> Larry(19->20) SAFE
+        "Larry McDuffee": "Brian McLaughlin"},   # Larry(19) filtered -> Brian(19->20) SAFE
+    5: {"L.A. Fox": "Jonathan Loveday"},         # L.A.(19) filtered -> Jonathan(20->21) SAFE
+    6: {"Jerry Wood": "Kyle Fairman"},           # Jerry(19) filtered -> Kyle(20->21) SAFE
+    7: {"Jonathan Loveday": "Frank Bohannon"},   # Jonathan(19) filtered -> Frank(20->21) SAFE
 }
 
 # Church Directory CSV - All 161 families
@@ -341,6 +380,119 @@ def get_week_schedule(week_number):
         "Sunday": ["Larry McDuffee"]                   # 1 assignment
     }  # Total: 8 assignments (but 9 prayer slots since Monday has 2)
 
+
+def validate_elder_data():
+    """Ensure ELDERS, ELDER_FAMILIES, and the schedule are internally consistent.
+
+    Raises ValueError on any inconsistency so the problem surfaces at startup
+    instead of silently producing a bad schedule later.
+
+    Checks:
+      1. ELDERS and ELDER_FAMILIES have the same set of elders.
+      2. Every ELDER_FAMILIES value appears in the parsed DIRECTORY_CSV.
+      3. get_week_schedule() references only elders from ELDERS.
+      4. Every elder in ELDERS appears in get_week_schedule() at least once.
+    """
+    elder_set = set(ELDERS)
+    family_keys = set(ELDER_FAMILIES.keys())
+    if elder_set != family_keys:
+        missing = elder_set - family_keys
+        extra = family_keys - elder_set
+        raise ValueError(
+            "ELDERS and ELDER_FAMILIES are out of sync. "
+            f"Missing from ELDER_FAMILIES: {sorted(missing)}. "
+            f"Extra in ELDER_FAMILIES: {sorted(extra)}."
+        )
+
+    directory = set(parse_directory())
+    for elder, family in ELDER_FAMILIES.items():
+        if family not in directory:
+            raise ValueError(
+                f"Elder {elder!r} maps to family {family!r}, which is not in DIRECTORY_CSV. "
+                "Fix ELDER_FAMILIES or DIRECTORY_CSV so they agree."
+            )
+
+    schedule = get_week_schedule(1)
+    scheduled = set()
+    for day, elders in schedule.items():
+        for e in elders:
+            if e not in elder_set:
+                raise ValueError(
+                    f"get_week_schedule() references unknown elder {e!r} on {day}."
+                )
+            scheduled.add(e)
+    unscheduled = elder_set - scheduled
+    if unscheduled:
+        raise ValueError(
+            f"These elders are in ELDERS but never appear in get_week_schedule(): "
+            f"{sorted(unscheduled)}"
+        )
+
+
+def validate_reassignment_map():
+    """Ensure FIXED_REASSIGNMENT_MAP references only valid elders and cycle positions.
+
+    Raises ValueError on misconfiguration. Bad entries would otherwise cause
+    silently wrong assignments when the relevant cycle position comes around.
+    """
+    elder_set = set(ELDERS)
+    for cycle, reassignments in FIXED_REASSIGNMENT_MAP.items():
+        if not isinstance(cycle, int) or not (0 <= cycle <= 7):
+            raise ValueError(
+                f"FIXED_REASSIGNMENT_MAP has invalid cycle position {cycle!r}; must be 0-7."
+            )
+        if not isinstance(reassignments, dict):
+            raise ValueError(
+                f"FIXED_REASSIGNMENT_MAP[{cycle}] must be a dict, got {type(reassignments).__name__}."
+            )
+        for from_elder, to_elder in reassignments.items():
+            if from_elder not in elder_set:
+                raise ValueError(
+                    f"FIXED_REASSIGNMENT_MAP[{cycle}]: unknown source elder {from_elder!r}."
+                )
+            if to_elder not in elder_set:
+                raise ValueError(
+                    f"FIXED_REASSIGNMENT_MAP[{cycle}]: unknown target elder {to_elder!r}."
+                )
+            if from_elder == to_elder:
+                raise ValueError(
+                    f"FIXED_REASSIGNMENT_MAP[{cycle}]: {from_elder!r} cannot reassign to self."
+                )
+
+
+def verify_today_elder_assignment(today, week_num, elder_assignments):
+    """Confirm today's scheduled elder(s) have non-empty family assignments.
+
+    Returns (ok, message). Guards against silent drift where the rotation
+    math disagrees with get_week_schedule() — e.g., an elder renamed in one
+    place but not the other.
+    """
+    day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    today_name = day_names[today.weekday()]
+    schedule = get_week_schedule(week_num)
+    expected = schedule.get(today_name, [])
+
+    if not expected:
+        return False, f"get_week_schedule() has no elders assigned to {today_name}."
+
+    for elder in expected:
+        if elder not in elder_assignments:
+            return False, (
+                f"Today's elder {elder!r} (for {today_name}) is missing from "
+                "the generated assignments."
+            )
+        if not elder_assignments[elder]:
+            return False, (
+                f"Today's elder {elder!r} (for {today_name}) has zero families "
+                "assigned — expected 19-21."
+            )
+
+    return True, (
+        f"Today ({today_name}) elder(s) {', '.join(expected)} — "
+        f"{sum(len(elder_assignments[e]) for e in expected)} families total."
+    )
+
+
 def calculate_week_number(date):
     """Calculate ISO week number for display purposes"""
     iso_year, iso_week, iso_day = date.isocalendar()
@@ -454,30 +606,8 @@ def assign_families_for_week_v10(week_number):
 
         assignments[elder] = pool_families
 
-    # Second pass: Redistribute filtered families using FIXED reassignment table
-    # This ensures consistency and prevents week-to-week repeats
-    #
-    # Fixed reassignment mapping based on conflict analysis (161 families):
-    # Pool 0: 21 families, Pools 1-7: 20 families each
-    # - Cycle week 1: Alan Judd's, Frank Bohannon's, and Kyle Fairman's families filtered
-    # - Cycle week 4: Brian McLaughlin's and Larry McDuffee's families filtered
-    # - Cycle week 5: L.A. Fox's family filtered
-    # - Cycle week 6: Jerry Wood's family filtered
-    # - Cycle week 7: Jonathan Loveday's family filtered
-    #
-    # Reassignments chosen to maintain 19-21 family balance and avoid repeats:
-    # Each target verified SAFE (family not in target's adjacent-week pools)
-    FIXED_REASSIGNMENT_MAP = {
-        1: {"Alan Judd": "Jerry Wood",               # Alan(19) filtered -> Jerry(20->21) SAFE
-            "Frank Bohannon": "Jonathan Loveday",    # Frank(19) filtered -> Jonathan(20->21) SAFE
-            "Kyle Fairman": "Brian McLaughlin"},     # Kyle(19) filtered -> Brian(20->21) SAFE
-        4: {"Brian McLaughlin": "Larry McDuffee",    # Brian(19) filtered -> Larry(19->20) SAFE
-            "Larry McDuffee": "Brian McLaughlin"},   # Larry(19) filtered -> Brian(19->20) SAFE
-        5: {"L.A. Fox": "Jonathan Loveday"},         # L.A.(19) filtered -> Jonathan(20->21) SAFE
-        6: {"Jerry Wood": "Kyle Fairman"},           # Jerry(19) filtered -> Kyle(20->21) SAFE
-        7: {"Jonathan Loveday": "Frank Bohannon"},   # Jonathan(19) filtered -> Frank(20->21) SAFE
-    }
-
+    # Second pass: Redistribute filtered families using FIXED_REASSIGNMENT_MAP
+    # (defined at module scope — see validate_reassignment_map for shape).
     reassignment_map = FIXED_REASSIGNMENT_MAP.get(cycle_position, {})
 
     for elder_family, owner_elder, owner_idx in filtered_families_data:
@@ -1090,14 +1220,14 @@ def _email_styles():
         'day_nav': 'background:#1a252f;padding:14px 8px;text-align:center;font-size:0;',
         'day_pill': 'display:inline-block;padding:8px 6px;border-radius:20px;font-size:12px;font-weight:600;color:#8899a6;border:2px solid #2c3e50;text-align:center;width:60px;margin:2px;',
         'day_pill_today': 'display:inline-block;padding:8px 6px;border-radius:20px;font-size:12px;font-weight:700;color:#ffffff;background-color:#e67e22;border:2px solid #e67e22;text-align:center;width:60px;margin:2px;',
-        'day_pill_past': 'display:inline-block;padding:8px 6px;border-radius:20px;font-size:12px;font-weight:600;color:#5a6a7a;border:2px solid #2c3e50;text-align:center;width:60px;margin:2px;',
-        'day_pill_label': 'display:block;font-size:10px;color:#a0adb8;margin-top:2px;',
+        'day_pill_past': 'display:inline-block;padding:8px 6px;border-radius:20px;font-size:12px;font-weight:600;color:#c5d0db;border:2px solid #2c3e50;text-align:center;width:60px;margin:2px;',
+        'day_pill_label': 'display:block;font-size:10px;color:#d0d9e2;margin-top:2px;',
         'day_pill_label_today': 'display:block;font-size:10px;color:#ffffff;margin-top:2px;',
-        'day_pill_label_past': 'display:block;font-size:10px;color:#6d7d8a;margin-top:2px;',
-        'today_banner': 'background-color:#e67e22;padding:22px 30px;text-align:center;',
+        'day_pill_label_past': 'display:block;font-size:10px;color:#b8c4d1;margin-top:2px;',
+        'today_banner': 'background-color:#b75e10;padding:22px 30px;text-align:center;',
         'today_banner_h2': 'margin:0 0 6px 0;font-size:18px;font-weight:700;color:#ffffff;',
         'today_elder': 'margin:4px 0;font-size:20px;font-weight:700;color:#ffffff;',
-        'today_count': 'margin:4px 0 0 0;font-size:13px;color:#fde8d0;',
+        'today_count': 'margin:4px 0 0 0;font-size:13px;color:#ffffff;',
         'content': 'padding:24px 30px;color:#333333;font-size:15px;line-height:1.7;',
         'section_label': 'font-size:12px;font-weight:700;color:#555555;margin:20px 0 10px 0;',
         'table': 'width:100%;border-collapse:collapse;margin:10px 0;border:1px solid #ddd;',
@@ -1373,7 +1503,7 @@ def send_daily_combined_email(today, week_num, monday, elder_assignments):
             current_date += timedelta(days=1)
 
         # Build email content once (reused for each recipient)
-        subject = f"Daily Prayer Reminder- {today_formatted}: {elder_names}"
+        subject = f"Daily Prayer Reminder - {today_formatted}: {elder_names}"
         plain_body = f"""Crossville Church of Christ
 Daily Prayer Reminder - {today_formatted}: {elder_names}
 Week {week_num} ({date_range})
@@ -1559,6 +1689,13 @@ def main():
         print(f"[DATE] Central Time (church local): {today.strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"[DATE] Today: {today_name}, {today.strftime('%B %d, %Y')}")
 
+        # Startup validation — fail loudly on any config drift before doing work.
+        print("\nValidating configuration...")
+        validate_elder_data()
+        validate_reassignment_map()
+        validate_email_config()
+        print("[OK] Elder data, reassignment map, and email config are consistent.")
+
         # First verify the algorithm
         print("\nRunning algorithm verification...")
         if not verify_v10_algorithm():
@@ -1606,6 +1743,13 @@ def main():
             return False
 
         print("[OK] All verification checks passed!")
+
+        # Sanity-check that today's scheduled elder(s) actually have families assigned.
+        today_ok, today_msg = verify_today_elder_assignment(today, week_num, elder_assignments)
+        print(f"[TODAY CHECK] {today_msg}")
+        if not today_ok:
+            print("[X] TODAY-ELDER VERIFICATION FAILED — aborting to prevent wrong email")
+            return False
 
         # Show family counts
         print("\nFamily counts:")

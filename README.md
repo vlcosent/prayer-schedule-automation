@@ -26,8 +26,8 @@ Automated prayer schedule generator for Crossville Church of Christ. Rotates 8 e
 
 The system runs every day at **1:00 PM UTC** (8:00 AM CDT / 7:00 AM CST):
 
-- **Monday**: Archives previous schedule, generates new weekly schedule, sends weekly email + daily reminder
-- **Tuesday-Sunday**: Refreshes output files, sends daily prayer reminder email
+- **Monday**: Archives previous schedule, generates new weekly schedule, sends a combined daily email (today's assignment + week overview + full prayer lists for every elder)
+- **Tuesday-Sunday**: Refreshes output files, sends a combined daily email (today's assignment + week overview)
 
 All emails go to 10 configured recipients (elder group list + individual elders + church staff).
 
@@ -78,8 +78,8 @@ To temporarily disable emails, set `EMAIL_ENABLED: 'false'` in `.github/workflow
 
 To add or remove a family:
 
-1. Edit `DIRECTORY_CSV` in `prayer_schedule_V10_DESKTOP_FIXED.py` (~line 170)
-2. Recalculate `FIXED_REASSIGNMENT_MAP` (~line 480) using `calc_reassignments.py`
+1. Edit `DIRECTORY_CSV` in `prayer_schedule_V10_DESKTOP_FIXED.py` (~line 160)
+2. Recalculate `FIXED_REASSIGNMENT_MAP` (~line 470, inside `assign_families_for_week_v10()`) using `calc_reassignments.py`
 3. Update family count comments throughout the file
 4. Run `python comprehensive_verification.py` to confirm all checks pass
 
