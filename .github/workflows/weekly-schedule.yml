@@ -83,14 +83,22 @@ jobs:
       run: |
         python prayer_schedule_V10_DESKTOP_FIXED.py
 
-    - name: Commit and push generated files
+    - name: Commit archive rollover (Mondays only)
       if: always() && steps.schedule_gate.outputs.skip != 'true'
       run: |
+        # Current-week files and the log are NOT committed anymore — they
+        # flow to Pages via the workflow artifact, regenerated every run.
+        # Only new archive/ entries (created on Mondays when the schedule
+        # rolls over) are committed, which cuts git history bloat ~95%.
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "GitHub Actions Bot"
-        git add Prayer_Schedule_Current_Week.html Prayer_Schedule_Current_Week.txt prayer_schedule_log.txt archive/
-        git diff --staged --quiet || git commit -m "Auto-generate prayer schedule for $(date +%Y-%m-%d)"
-        git push || echo "No changes to push"
+        git add archive/
+        if git diff --staged --quiet; then
+          echo "No archive changes to commit"
+        else
+          git commit -m "Archive prayer schedule for $(date +%Y-%m-%d)"
+          git push || echo "No changes to push (push failed)"
+        fi
 
     - name: Upload schedule artifacts
       if: always() && steps.schedule_gate.outputs.skip != 'true'
@@ -125,27 +133,43 @@ jobs:
     if: needs.generate-schedule.outputs.should_deploy == 'true'
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pages: write
       id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-    - name: Wait for push propagation
-      run: sleep 30
-
     - name: Checkout repository
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       with:
         ref: main
+
+    - name: Set up Python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+      with:
+        python-version: '3.11'
+
+    - name: Download schedule artifact
+      uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53  # v6.0.0
+      with:
+        name: prayer-schedule-${{ github.run_number }}
+
+    - name: Build landing page
+      run: python build_landing_page.py
 
     - name: Prepare site directory
       run: |
         mkdir _site
         cp index.html _site/
         cp .nojekyll _site/
-        cp Prayer_Schedule_Current_Week.html _site/ || true
-        cp Prayer_Schedule_Current_Week.txt _site/ || true
+        cp Prayer_Schedule_Current_Week.html _site/
+        cp Prayer_Schedule_Current_Week.txt _site/
+        # Expose archive/ so landing-page links resolve.
+        cp -r archive _site/archive
 
     - name: Setup Pages
       uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d  # v6.0.0
