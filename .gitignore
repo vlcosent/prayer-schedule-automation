@@ -8,3 +8,18 @@ __pycache__/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Generated outputs — regenerated every run, never committed.
+# The deploy workflow builds these fresh and publishes via Pages.
+Prayer_Schedule_Current_Week.html
+Prayer_Schedule_Current_Week.txt
+prayer_schedule_log.txt
+index.html
+
+# Python test/tooling
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local Claude Code worktree storage
+.claude/

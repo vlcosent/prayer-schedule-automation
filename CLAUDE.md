@@ -8,40 +8,64 @@ Automated prayer schedule system for Crossville Church of Christ. Rotates 8 elde
 
 | Item | Value |
 |------|-------|
-| Main script | `prayer_schedule_V10_DESKTOP_FIXED.py` (1704 lines, single file) |
-| Workflow | `.github/workflows/weekly-schedule.yml` |
-| Python version | 3.11 (stdlib only, no pip dependencies) |
-| Families | 161 (embedded in `DIRECTORY_CSV` constant, line ~170) |
-| Elders | 8 (in `ELDERS` list, line ~146) |
-| Cron schedule | Daily 1 PM UTC = 8 AM CDT / 7 AM CST |
-| Email sender | `churchprayerlistelders@gmail.com` via Gmail SMTP |
-| GitHub Pages | Deployed from `index.html` + generated HTML |
+| Entry point | `prayer_schedule_V10_DESKTOP_FIXED.py` (42-line shim → `prayer_schedule.cli.main`) |
+| Application | `prayer_schedule/` package (config, elders, directory, algorithm, validation, output, email_service, file_io, utils, cli) |
+| Tests | `tests/` (pytest — 100+ tests, covers algorithm invariants, year boundaries, validators, landing page) |
+| Workflow | `.github/workflows/weekly-schedule.yml` (cron + deploy) and `.github/workflows/ci.yml` (PR tests) |
+| Python version | 3.11 (stdlib only, pytest only in CI) |
+| Families | 161 (embedded in `DIRECTORY_CSV`, `prayer_schedule/directory.py`) |
+| Elders | 8 (single-source-of-truth in `ELDER_DATA`, `prayer_schedule/elders.py`) |
+| Cron schedule | 12:17 UTC (CDT) / 13:17 UTC (CST) — gated by DST-aware step |
+| GitHub Pages | Built fresh by deploy job: `build_landing_page.py` + current files (from artifact) + `archive/` |
 
 ## Repository File Map
 
 ```
-prayer_schedule_V10_DESKTOP_FIXED.py   # THE application (all logic in one file)
-.github/workflows/weekly-schedule.yml  # CI: daily cron + manual dispatch
-.github/workflows/deploy-pages.yml     # GitHub Pages deploy (on push to main)
-index.html                             # GitHub Pages landing page
-.nojekyll                              # Tells GitHub Pages to skip Jekyll
-UPDATE_PRAYER_SCHEDULE_FIXED.bat       # Windows launcher (double-click to run locally)
+prayer_schedule_V10_DESKTOP_FIXED.py   # Thin backward-compat shim (42 lines)
+prayer_schedule/                        # Main application package
+    __init__.py                         # Public API re-exports
+    config.py                           # SMTP, timezone, paths, tuning constants
+    elders.py                           # ELDER_DATA SSOT → ELDERS, ELDER_FAMILIES, schedule
+    directory.py                        # DIRECTORY_CSV + validated parse_directory()
+    algorithm.py                        # Pool distribution, assignment, FIXED_REASSIGNMENT_MAP
+    validation.py                       # Startup + runtime validators
+    output.py                           # HTML + text schedule generators
+    email_service.py                    # Gmail SMTP + combined-email builder
+    file_io.py                          # Atomic file writes, archiving, logging
+    utils.py                            # get_today, iter_week, day_name_for
+    cli.py                              # main() orchestrator
+
+tests/                                  # pytest suite
+    conftest.py                         # Shared fixtures
+    test_directory.py                   # CSV parsing + validation
+    test_algorithm.py                   # All invariants across many weeks
+    test_year_boundary.py               # ISO-week reset regression tests
+    test_validation.py                  # Startup validators
+    test_landing_page.py                # build_landing_page.py logic
+
+build_landing_page.py                   # Generates index.html from archive/
+.github/workflows/
+    weekly-schedule.yml                 # Daily cron + Pages deploy
+    ci.yml                              # PR tests (pytest + smoke run)
+.nojekyll                               # Tells GitHub Pages to skip Jekyll
+UPDATE_PRAYER_SCHEDULE_FIXED.bat        # Windows launcher (calls shim)
 
 # Documentation
-README.md                              # User-facing project overview
-EMAIL_SETUP_GUIDE.md                   # Gmail App Password + GitHub Secrets setup
-CLAUDE.md                              # This file (AI/developer reference)
+README.md                               # User-facing project overview
+EMAIL_SETUP_GUIDE.md                    # Gmail App Password + GitHub Secrets setup
+CLAUDE.md                               # This file (AI/developer reference)
 
-# Helper scripts (for development/debugging only)
-comprehensive_verification.py          # Extended test suite: coverage + year-boundary
-analyze_missing_coverage.py            # Shows which elder families land in which pools
-calc_reassignments.py                  # Calculates safe reassignment targets
+# Helper scripts (legacy — now duplicate of tests/ for debugging)
+comprehensive_verification.py           # Coverage + year-boundary quick check
+analyze_missing_coverage.py             # Shows which elder families land in which pools
+calc_reassignments.py                   # Recompute FIXED_REASSIGNMENT_MAP targets
 
-# Generated files (auto-committed by CI)
-Prayer_Schedule_Current_Week.html      # Current week schedule (web viewable)
-Prayer_Schedule_Current_Week.txt       # Current week schedule (plain text)
-prayer_schedule_log.txt                # Activity log with timestamps
-archive/                               # Historical weekly schedules (.txt files)
+# Generated files (NOT committed — .gitignored)
+Prayer_Schedule_Current_Week.html       # Rebuilt every run, flows via workflow artifact
+Prayer_Schedule_Current_Week.txt        # Rebuilt every run, flows via workflow artifact
+prayer_schedule_log.txt                 # Activity log; kept locally only
+index.html                              # Landing page; rebuilt each deploy
+archive/                                # Historical weekly schedules (committed — Monday rollover only)
 ```
 
 ## How the Algorithm Works
@@ -53,7 +77,7 @@ archive/                               # Historical weekly schedules (.txt files
 4. `cycle_position = (continuous_week - 1) % 8` advances by 1 each week
 
 ### Elder-Own-Family Handling
-When an elder's pool contains their own family, it's filtered out and reassigned to another elder via `FIXED_REASSIGNMENT_MAP` (line ~480). The map covers cycle positions [1, 4, 5, 6, 7]. Each target is verified "adjacency-safe" (no week-to-week repeats).
+When an elder's pool contains their own family, it's filtered out and reassigned to another elder via `FIXED_REASSIGNMENT_MAP` (module-level constant in `prayer_schedule/algorithm.py`). The map covers cycle positions [1, 4, 5, 6, 7]. Each target is verified "adjacency-safe" (no week-to-week repeats). Validated at startup by `validate_reassignment_map()` in `prayer_schedule/validation.py`.
 
 ### Year-Boundary Fix
 ISO week numbers reset at year boundaries (52→1), breaking `cycle_position`. Fixed with `calculate_continuous_week()` using `REFERENCE_MONDAY = 2025-12-29`. Within 2026, continuous week == ISO week.
@@ -65,82 +89,67 @@ ISO week numbers reset at year boundaries (52→1), breaking `cycle_position`. F
 - 8-week cycle repeats exactly
 - All 161 families covered
 
-## Main Script Structure (prayer_schedule_V10_DESKTOP_FIXED.py)
+## Package Structure (prayer_schedule/)
 
-| Lines | Section | Purpose |
-|-------|---------|---------|
-| 1-39 | Module docstring | Feature list and version history |
-| 40-53 | Imports | All stdlib: csv, datetime, smtplib, zoneinfo, etc. |
-| 54-78 | `DESKTOP_DIR` setup | Auto-detects CI vs desktop environment |
-| 82-100 | Email config | SMTP settings, credentials from env vars |
-| 103-116 | Timezone | `CENTRAL_TZ` via `zoneinfo.ZoneInfo("America/Chicago")` |
-| 118-142 | `verify_email_date()` | Date sanity check before sending email |
-| 145-167 | Elder data | `ELDERS` list, `ELDER_FAMILIES` dict |
-| 169-331 | `DIRECTORY_CSV` | All 161 families as embedded CSV string |
-| 333-340 | `parse_directory()` | CSV → sorted list of "Last, First" strings |
-| 342-352 | `get_week_schedule()` | Static day→elder mapping (Mon=2 elders, Tue-Sun=1) |
-| 354-388 | Week calculation | `calculate_week_number()`, `calculate_continuous_week()` |
-| 390-418 | `create_v10_master_pools()` | Round-robin pool distribution |
-| 420-504 | `assign_families_for_week_v10()` | Core assignment + `FIXED_REASSIGNMENT_MAP` |
-| 506-612 | `verify_v10_algorithm()` | 16-week verification (5 checks) |
-| 614-1017 | `generate_schedule_content()` | HTML + text output generation |
-| 1024-1073 | `archive_previous_schedule()` | Move old .txt to `archive/` directory |
-| 1075-1211 | Email HTML builders | `_email_styles()`, `_build_weekly_email_html()` |
-| 1214-1271 | `_build_daily_email_html()` | Daily reminder email template |
-| 1274-1369 | `send_email_schedule()` | Weekly email via Gmail SMTP |
-| 1372-1486 | `send_daily_email()` | Daily reminder email via Gmail SMTP |
-| 1488-1523 | File I/O + logging | `update_desktop_files()`, `log_activity()` |
-| 1525-1556 | `verify_schedule()` | Runtime validation of current week |
-| 1558-1704 | `main()` | Orchestrator: verify → assign → generate → email |
+| Module | Responsibility |
+|--------|----------------|
+| `config.py` | SMTP settings, `CENTRAL_TZ`, `REFERENCE_MONDAY`, `DAYS_OF_WEEK`, `DESKTOP_DIR`, env-var reads, tuning constants (`ELDER_COUNT`, `POOL_COUNT`, `FAMILIES_PER_ELDER_MIN/MAX`) |
+| `elders.py` | `ELDER_DATA` single-source-of-truth → derived `ELDERS`, `ELDER_FAMILIES`, and `get_week_schedule()` |
+| `directory.py` | `DIRECTORY_CSV` constant + `parse_directory(csv_content=None)` with row-numbered validation and duplicate detection |
+| `algorithm.py` | `create_v10_master_pools`, `get_master_pools`, `assign_families_for_week_v10`, module-level `FIXED_REASSIGNMENT_MAP`, `calculate_week_number`, `calculate_continuous_week` |
+| `validation.py` | Structured validators returning `(ok, issues)` tuples: `validate_elder_data`, `validate_reassignment_map`, `validate_email_config`, `verify_today_elder_assignment`, `verify_schedule`, `verify_v10_algorithm`, `verify_email_date` |
+| `output.py` | `generate_html_schedule`, `generate_text_schedule`, `generate_schedule_content` orchestrator |
+| `email_service.py` | `_email_styles`, `_build_combined_email_html`, `send_daily_combined_email` (with `List-Unsubscribe` header per RFC 8058) |
+| `file_io.py` | Atomic writes via `<path>.tmp` + `os.replace`, pre-write permission checks, `archive_previous_schedule`, `log_activity` |
+| `utils.py` | `get_today`, `iter_week`, `day_name_for` |
+| `cli.py` | `main()` orchestrator: validators → algorithm → generate → write → email |
+
+All public symbols are re-exported from the top-level `prayer_schedule` package and from the backward-compat shim `prayer_schedule_V10_DESKTOP_FIXED.py`.
 
 ## Common Tasks
 
 ### Adding/Removing a Family
-1. Edit `DIRECTORY_CSV` in `prayer_schedule_V10_DESKTOP_FIXED.py` (line ~170)
-2. Recalculate `FIXED_REASSIGNMENT_MAP` (line ~480) using `calc_reassignments.py`
-3. Update family count comments (search for old count, e.g. "161")
-4. Run `python comprehensive_verification.py` to confirm all checks pass
-5. Update pool size comments if distribution changes
+1. Edit `DIRECTORY_CSV` in `prayer_schedule/directory.py`
+2. Recalculate `FIXED_REASSIGNMENT_MAP` in `prayer_schedule/algorithm.py` using `calc_reassignments.py`
+3. Run `python -m pytest tests/` — several tests hard-assert the count (161); update them if the total changes
+4. Run `python comprehensive_verification.py` as a second sanity check
 
 ### Adding/Removing an Elder
-Elder data is spread across 6 locations (all in the main script):
-1. `ELDERS` list (line ~146)
-2. `ELDER_FAMILIES` dict (line ~158)
-3. `get_week_schedule()` function (line ~342)
-4. `FIXED_REASSIGNMENT_MAP` (line ~480)
-5. Email config `RECIPIENT_EMAILS` (line ~89, plus GitHub Secrets)
-6. README.md documentation
+Only TWO edits needed (down from 6 in the old monolith):
+1. Update `ELDER_DATA` in `prayer_schedule/elders.py` (name, family, days).
+2. Update `FIXED_REASSIGNMENT_MAP` in `prayer_schedule/algorithm.py` (use `calc_reassignments.py` to compute safe targets).
+3. Update `RECIPIENT_EMAILS` GitHub secret.
+4. Run `python -m pytest tests/` — the validation suite catches most drift automatically.
 
 ### Changing the Schedule Time
-Edit cron in `.github/workflows/weekly-schedule.yml` line 6:
-```yaml
-- cron: '0 13 * * *'  # minute hour * * * (UTC)
-```
+Edit cron in `.github/workflows/weekly-schedule.yml` (the DST-aware gate picks the right entry automatically).
 
 ### Testing Without Sending Emails
-Use manual workflow dispatch with `send_emails: false` (the default for manual runs).
-Or locally: just run `python prayer_schedule_V10_DESKTOP_FIXED.py` without setting `EMAIL_ENABLED=true`.
+Use manual workflow dispatch with `send_emails: false` (default for manual runs), or locally: `EMAIL_ENABLED=false python prayer_schedule_V10_DESKTOP_FIXED.py`.
 
 ### Running Verification
 ```bash
-python comprehensive_verification.py       # Full test suite
-python prayer_schedule_V10_DESKTOP_FIXED.py # Also runs verify_v10_algorithm() internally
+python -m pytest tests/                     # Primary test suite (100+ tests)
+python comprehensive_verification.py        # Legacy quick check
+python prayer_schedule_V10_DESKTOP_FIXED.py # Full run (needs EMAIL_ENABLED=false)
 ```
 
 ## CI/CD Workflow Behavior
 
-**Scheduled runs (daily cron):**
-- Emails always enabled
-- Monday: archive old schedule → regenerate files → send weekly email → send daily email
-- Tue-Sun: regenerate HTML/text → send daily email
-- Commits generated files → pushes to main → deploys to GitHub Pages
+**`.github/workflows/weekly-schedule.yml` — scheduled + dispatch:**
+- Runs pytest first; aborts if any test fails.
+- Generates schedule files into the runner, uploads as artifact, sends combined daily email.
+- Commits only `archive/` rollovers (Mondays). Current-week files and the log are NEVER committed.
+- Deploy job downloads the artifact, runs `build_landing_page.py`, and publishes to GitHub Pages (index + current + archive).
+
+**`.github/workflows/ci.yml` — push/PR:**
+- Runs pytest + smoke-runs the main script (no email).
 
 **Manual runs (workflow_dispatch):**
-- Emails disabled by default (selectable via `send_emails` input)
-- Same generation logic as scheduled runs
+- Emails disabled by default (opt-in via `send_emails` input).
 
 **On failure (scheduled runs only):**
-- Creates or comments on a GitHub issue labeled "bug"
+- Creates or comments on a GitHub issue labeled "bug".
 
 ## Environment Variables
 
@@ -154,8 +163,6 @@ python prayer_schedule_V10_DESKTOP_FIXED.py # Also runs verify_v10_algorithm() i
 
 ## Known Limitations
 
-- **Single-file architecture**: All 1700+ lines in one script. Works fine but harder to navigate.
-- **Hardcoded fallback emails**: Lines 89-100 have real email addresses as defaults if env var is missing.
-- **Static reassignment map**: `FIXED_REASSIGNMENT_MAP` must be manually recalculated when families or elders change.
-- **Locked to 8 elders**: Pool count, rotation, and reassignment map all assume exactly 8.
-- **No unit test framework**: Verification is built-in but not pytest-based.
+- **Static reassignment map**: `FIXED_REASSIGNMENT_MAP` must be manually recalculated when families or elders change. Use `calc_reassignments.py` and the test suite catches drift.
+- **Locked to 8 elders**: Pool count, rotation, and reassignment map all assume exactly 8 (`ELDER_COUNT = POOL_COUNT = 8` in `config.py`).
+- **Directory PII in source**: Family names live in `DIRECTORY_CSV` (`prayer_schedule/directory.py`) and elder family identities in `ELDER_DATA` (`prayer_schedule/elders.py`). Treat the repo as sensitive and keep it private.
