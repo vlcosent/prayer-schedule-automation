@@ -157,9 +157,14 @@ def assign_families_for_week_v10(week_number: int) -> dict[str, list[str]]:
     for elder_family, owner_elder, owner_idx in filtered_families_data:
         best_elder = reassignment_map.get(owner_elder)
 
-        # Fallback if not in map (shouldn't happen with a correct map).
         if not best_elder:
-            best_elder = ELDERS[(owner_idx + 4) % len(ELDERS)]
+            # validate_reassignment_map() is meant to catch this at startup;
+            # raising here ensures any drift surfaces loudly instead of
+            # silently routing the family to a guessed elder.
+            raise RuntimeError(
+                f"FIXED_REASSIGNMENT_MAP missing entry for {owner_elder} "
+                f"at cycle_position {cycle_position}"
+            )
 
         assignments[best_elder].append(elder_family)
 
