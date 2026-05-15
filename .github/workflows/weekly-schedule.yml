@@ -114,6 +114,7 @@ jobs:
       env:
         SEND_EMAILS_INPUT: ${{ inputs.send_emails || 'false' }}
       run: |
+        set -euo pipefail
         # Current-week files and the log are NOT committed anymore — they
         # flow to Pages via the workflow artifact, regenerated every run.
         # The send-state file prevents delayed schedule retries from sending
@@ -139,7 +140,10 @@ jobs:
           echo "No send-state or archive changes to commit"
         else
           git commit -m "Record prayer schedule run for $CENTRAL_DATE"
-          git pull --rebase origin main
+          if ! git pull --rebase origin main; then
+            echo "::error::git pull --rebase failed; aborting push so state file is not lost"
+            exit 1
+          fi
           git push
         fi
 

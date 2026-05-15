@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
+from prayer_schedule import algorithm
 from prayer_schedule.algorithm import assign_families_for_week_v10, calculate_continuous_week
 from prayer_schedule.config import CENTRAL_TZ
 from prayer_schedule.elders import get_week_schedule
@@ -68,3 +69,20 @@ def test_verify_email_date_rejects_out_of_week() -> None:
     wrong_monday = datetime(2026, 4, 6, tzinfo=CENTRAL_TZ)  # week before
     ok, _ = verify_email_date(friday, wrong_monday)
     assert not ok
+
+
+def test_validate_reassignment_map_detects_missing_entry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Drop a known-required entry and confirm the validator catches it.
+
+    Cycle position 3 maps ``Frank Bohannon -> Jonathan Loveday`` (among others).
+    Removing Frank from that cycle's mapping must surface a clear issue.
+    """
+    broken = {k: dict(v) for k, v in algorithm.FIXED_REASSIGNMENT_MAP.items()}
+    del broken[3]["Frank Bohannon"]
+    monkeypatch.setattr(algorithm, "FIXED_REASSIGNMENT_MAP", broken)
+
+    ok, issues = validate_reassignment_map()
+    assert not ok
+    assert any("Frank Bohannon" in issue for issue in issues), issues

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import pytest
 
+from prayer_schedule import algorithm
 from prayer_schedule.algorithm import (
     assign_families_for_week_v10,
     create_v10_master_pools,
@@ -103,3 +104,19 @@ def test_week_to_week_full_rotation(elders: list[str]) -> None:
             assert not overlap, (
                 f"{elder}: week {week} and week {week + 1} share {overlap}"
             )
+
+
+def test_assign_families_raises_when_reassignment_map_incomplete(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If FIXED_REASSIGNMENT_MAP is missing an entry for an elder whose family
+    landed in their own pool, the algorithm must fail loudly rather than
+    silently routing the family to a guessed elder.
+
+    Cycle position 1 (week_number=2) is known to have Larry McDuffee's family
+    filtered into his pool; clearing the map for that position guarantees a
+    missing entry.
+    """
+    monkeypatch.setattr(algorithm, "FIXED_REASSIGNMENT_MAP", {})
+    with pytest.raises(RuntimeError, match="FIXED_REASSIGNMENT_MAP missing entry"):
+        assign_families_for_week_v10(2)
