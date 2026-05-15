@@ -48,11 +48,11 @@ DAYS_OF_WEEK: tuple[str, ...] = (
     "Sunday",
 )
 
-ELDER_COUNT: int = 8
+ELDER_COUNT: int = 7
 POOL_COUNT: int = ELDER_COUNT
-ROTATION_WEEKS: int = 8
-FAMILIES_PER_ELDER_MIN: int = 19
-FAMILIES_PER_ELDER_MAX: int = 21
+ROTATION_WEEKS: int = 7
+FAMILIES_PER_ELDER_MIN: int = 22
+FAMILIES_PER_ELDER_MAX: int = 24
 
 
 # ============== Email delivery tuning ==============

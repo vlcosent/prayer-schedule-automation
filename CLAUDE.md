@@ -2,7 +2,7 @@
 
 ## What This Project Does
 
-Automated prayer schedule system for Crossville Church of Christ. Rotates 8 elders through 161 church families on an 8-week cycle. Runs daily via GitHub Actions at 1 PM UTC. Sends email reminders and publishes to GitHub Pages.
+Automated prayer schedule system for Crossville Church of Christ. Rotates 7 elders through 161 church families on a 7-week cycle. Runs daily via GitHub Actions at 1 PM UTC. Sends email reminders and publishes to GitHub Pages.
 
 ## Quick Reference
 
@@ -14,7 +14,7 @@ Automated prayer schedule system for Crossville Church of Christ. Rotates 8 elde
 | Workflow | `.github/workflows/weekly-schedule.yml` (cron + deploy) and `.github/workflows/ci.yml` (PR tests) |
 | Python version | 3.11 (stdlib only, pytest only in CI) |
 | Families | 161 (embedded in `DIRECTORY_CSV`, `prayer_schedule/directory.py`) |
-| Elders | 8 (single-source-of-truth in `ELDER_DATA`, `prayer_schedule/elders.py`) |
+| Elders | 7 (single-source-of-truth in `ELDER_DATA`, `prayer_schedule/elders.py`) |
 | Cron schedule | 12:17 UTC (CDT) / 13:17 UTC (CST) — gated by DST-aware step |
 | GitHub Pages | Built fresh by deploy job: `build_landing_page.py` + current files (from artifact) + `archive/` |
 
@@ -72,21 +72,21 @@ archive/                                # Historical weekly schedules (committed
 
 ### Pool Distribution
 1. Parse 161 families from `DIRECTORY_CSV` (sorted alphabetically)
-2. Distribute round-robin into 8 pools: Pool 0 = 21 families, Pools 1-7 = 20 each
-3. Each week, elder `i` gets pool `(i + cycle_position) % 8`
-4. `cycle_position = (continuous_week - 1) % 8` advances by 1 each week
+2. Distribute round-robin into 7 pools of exactly 23 families each (161 = 7 × 23)
+3. Each week, elder `i` gets pool `(i + cycle_position) % POOL_COUNT`
+4. `cycle_position = (continuous_week - 1) % POOL_COUNT` advances by 1 each week
 
 ### Elder-Own-Family Handling
-When an elder's pool contains their own family, it's filtered out and reassigned to another elder via `FIXED_REASSIGNMENT_MAP` (module-level constant in `prayer_schedule/algorithm.py`). The map covers cycle positions [1, 4, 5, 6, 7]. Each target is verified "adjacency-safe" (no week-to-week repeats). Validated at startup by `validate_reassignment_map()` in `prayer_schedule/validation.py`.
+When an elder's pool contains their own family, it's filtered out and reassigned to another elder via `FIXED_REASSIGNMENT_MAP` (module-level constant in `prayer_schedule/algorithm.py`). The map covers cycle positions [1, 2, 3, 4, 6]. Each target is verified "adjacency-safe" (no week-to-week repeats). Validated at startup by `validate_reassignment_map()` in `prayer_schedule/validation.py`.
 
 ### Year-Boundary Fix
 ISO week numbers reset at year boundaries (52→1), breaking `cycle_position`. Fixed with `calculate_continuous_week()` using `REFERENCE_MONDAY = 2025-12-29`. Within 2026, continuous week == ISO week.
 
 ### Key Invariants (verified every run)
-- Each elder gets 19-21 families per week
+- Each elder gets 22-24 families per week
 - No elder prays for their own family
 - 100% new families every consecutive week
-- 8-week cycle repeats exactly
+- 7-week cycle repeats exactly
 - All 161 families covered
 
 ## Package Structure (prayer_schedule/)
@@ -164,5 +164,5 @@ python prayer_schedule_V10_DESKTOP_FIXED.py # Full run (needs EMAIL_ENABLED=fals
 ## Known Limitations
 
 - **Static reassignment map**: `FIXED_REASSIGNMENT_MAP` must be manually recalculated when families or elders change. Use `calc_reassignments.py` and the test suite catches drift.
-- **Locked to 8 elders**: Pool count, rotation, and reassignment map all assume exactly 8 (`ELDER_COUNT = POOL_COUNT = 8` in `config.py`).
+- **Locked to current elder count**: Pool count and rotation length are driven by `ELDER_COUNT = POOL_COUNT = 7` in `config.py`; the reassignment map must be regenerated whenever this changes.
 - **Directory PII in source**: Family names live in `DIRECTORY_CSV` (`prayer_schedule/directory.py`) and elder family identities in `ELDER_DATA` (`prayer_schedule/elders.py`). Treat the repo as sensitive and keep it private.

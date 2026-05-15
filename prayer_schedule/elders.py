@@ -1,6 +1,6 @@
 """Elder data and the static weekly day-to-elder schedule.
 
-``ELDER_DATA`` is the single source of truth for the 8 church elders. The
+``ELDER_DATA`` is the single source of truth for the 7 church elders. The
 derived ``ELDERS`` list, ``ELDER_FAMILIES`` mapping, and ``get_week_schedule``
 function are all built from this list, so adding or removing an elder only
 requires editing ``ELDER_DATA`` (and the reassignment map in ``algorithm.py``).
@@ -22,10 +22,8 @@ class ElderRecord(TypedDict):
 
 
 # Elder roster: name, their own family string, and the day(s) of the week they
-# are assigned to pray. Monday historically has two elders (Alan Judd and
-# Brian McLaughlin); all other days have exactly one.
+# are assigned to pray. Each day of the week has exactly one assigned elder.
 ELDER_DATA: list[ElderRecord] = [
-    {"name": "Alan Judd",         "family": "Judd, Alan & Amy; Anderson, Adrian, Adam",       "days": ["Monday"]},
     {"name": "Brian McLaughlin",  "family": "McLaughlin, Brian & Heather",                    "days": ["Monday"]},
     {"name": "Frank Bohannon",    "family": "Bohannon, Frank & Paula",                        "days": ["Tuesday"]},
     {"name": "Jerry Wood",        "family": "Wood, Jerry & Rebecca",                          "days": ["Wednesday"]},
@@ -49,9 +47,9 @@ def get_week_schedule(week_number: int) -> dict[str, list[str]]:
     """Return the static day-to-elder mapping.
 
     Although ``week_number`` is accepted for forward compatibility, the
-    schedule is currently fixed (Monday gets Alan Judd & Brian McLaughlin,
-    each other weekday has a single elder). The result is a mapping from
-    day name ("Monday".."Sunday") to an ordered list of elder names.
+    schedule is currently fixed (each day of the week has a single
+    assigned elder). The result is a mapping from day name
+    ("Monday".."Sunday") to an ordered list of elder names.
     """
     schedule: dict[str, list[str]] = {day: [] for day in DAYS_OF_WEEK}
     for elder in ELDER_DATA:

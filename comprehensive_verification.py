@@ -6,7 +6,7 @@ This script performs deep verification to ensure:
 2. Each family is assigned to exactly ONE elder per week
 3. No elder prays for their own family
 4. No families are ever missed or duplicated
-5. Proper rotation over 8-week cycle
+5. Proper rotation over the configured rotation cycle
 """
 
 import csv
@@ -21,6 +21,10 @@ from prayer_schedule_V10_DESKTOP_FIXED import (
     ELDERS, ELDER_FAMILIES, parse_directory,
     assign_families_for_week_v10, get_master_pools,
     calculate_continuous_week, REFERENCE_MONDAY
+)
+from prayer_schedule.config import (
+    FAMILIES_PER_ELDER_MAX, FAMILIES_PER_ELDER_MIN,
+    POOL_COUNT, ROTATION_WEEKS,
 )
 
 def verify_complete_coverage():
@@ -146,9 +150,9 @@ def verify_complete_coverage():
         for elder, families in families_per_elder.items():
             count = len(families)
             total_assigned += count
-            status = "✅" if 19 <= count <= 21 else "❌"
+            status = "✅" if FAMILIES_PER_ELDER_MIN <= count <= FAMILIES_PER_ELDER_MAX else "❌"
             print(f"      {status} {elder}: {count} families")
-            if count < 19 or count > 21:
+            if count < FAMILIES_PER_ELDER_MIN or count > FAMILIES_PER_ELDER_MAX:
                 all_tests_passed = False
 
         # Summary for this week
@@ -163,28 +167,28 @@ def verify_complete_coverage():
         else:
             print(f"      ❌ Week {week_num} FAILED verification")
 
-    # Check 6: 8-week rotation cycle
-    print(f"\n\n🔄 8-WEEK CYCLE VERIFICATION:")
+    # Check 6: rotation cycle repeats
+    print(f"\n\n🔄 {ROTATION_WEEKS}-WEEK CYCLE VERIFICATION:")
     print("-"*80)
 
     week_start = 46
     cycle_perfect = True
 
     for elder in ELDERS:
-        # Get assignments for week N and week N+8
+        # Get assignments for week N and week N+ROTATION_WEEKS
         week1_families = set(assign_families_for_week_v10(week_start)[elder])
-        week9_families = set(assign_families_for_week_v10(week_start + 8)[elder])
+        weekN_families = set(assign_families_for_week_v10(week_start + ROTATION_WEEKS)[elder])
 
-        if week1_families == week9_families:
-            print(f"   ✅ {elder}: Week {week_start} = Week {week_start+8} (cycle repeats)")
+        if week1_families == weekN_families:
+            print(f"   ✅ {elder}: Week {week_start} = Week {week_start+ROTATION_WEEKS} (cycle repeats)")
         else:
             print(f"   ❌ {elder}: Cycle doesn't repeat correctly")
-            diff1 = week1_families - week9_families
-            diff2 = week9_families - week1_families
+            diff1 = week1_families - weekN_families
+            diff2 = weekN_families - week1_families
             if diff1:
-                print(f"      In week {week_start} but not {week_start+8}: {len(diff1)} families")
+                print(f"      In week {week_start} but not {week_start+ROTATION_WEEKS}: {len(diff1)} families")
             if diff2:
-                print(f"      In week {week_start+8} but not {week_start}: {len(diff2)} families")
+                print(f"      In week {week_start+ROTATION_WEEKS} but not {week_start}: {len(diff2)} families")
             cycle_perfect = False
             all_tests_passed = False
 
@@ -234,14 +238,14 @@ def verify_complete_coverage():
 
 def verify_year_boundary():
     """
-    CRITICAL VERIFICATION: Ensure the 8-week rotation cycle is continuous
+    CRITICAL VERIFICATION: Ensure the rotation cycle is continuous
     across year boundaries, where ISO week numbers reset from 52/53 to 1.
 
     This test uses calculate_continuous_week() to simulate multiple year
     transitions and verifies:
     1. Cycle positions advance by exactly 1 each week (no skips)
     2. No duplicate assignments between consecutive weeks
-    3. The 8-week cycle completes correctly across year boundaries
+    3. The rotation cycle completes correctly across year boundaries
     """
     print(f"\n\n{'='*80}")
     print("YEAR-BOUNDARY CONTINUITY VERIFICATION")
@@ -269,11 +273,11 @@ def verify_year_boundary():
             monday = start_monday + timedelta(weeks=week_offset)
             continuous_week = calculate_continuous_week(monday)
             iso_year, iso_week, _ = monday.isocalendar()
-            cycle_pos = (continuous_week - 1) % 8
+            cycle_pos = (continuous_week - 1) % POOL_COUNT
 
             # Check cycle position advances by exactly 1
             if prev_cycle_pos is not None:
-                expected = (prev_cycle_pos + 1) % 8
+                expected = (prev_cycle_pos + 1) % POOL_COUNT
                 if cycle_pos != expected:
                     print(f"   FAIL: {monday.strftime('%Y-%m-%d')} ISO W{iso_week}: "
                           f"cycle_pos={cycle_pos}, expected={expected} (discontinuity!)")

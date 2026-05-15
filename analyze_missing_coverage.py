@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from prayer_schedule_V10_DESKTOP_FIXED import (
     ELDERS, ELDER_FAMILIES, get_master_pools, assign_families_for_week_v10
 )
+from prayer_schedule.config import POOL_COUNT, ROTATION_WEEKS
 
 # Get master pools
 pools = get_master_pools()
@@ -39,12 +40,12 @@ for elder in ELDERS:
 print()
 print("-"*150)
 
-for week in range(1, 9):  # 8-week cycle
-    cycle_position = (week - 1) % 8
+for week in range(1, ROTATION_WEEKS + 1):
+    cycle_position = (week - 1) % POOL_COUNT
     print(f"Week {week:<3}", end='')
 
     for elder_idx, elder in enumerate(ELDERS):
-        pool_idx = (elder_idx + cycle_position) % 8
+        pool_idx = (elder_idx + cycle_position) % POOL_COUNT
         print(f"Pool {pool_idx:<14}", end='')
     print()
 
@@ -63,9 +64,9 @@ for elder_idx, elder in enumerate(ELDERS):
 
     # Find which week this elder gets that pool
     problem_weeks = []
-    for week in range(1, 9):
-        cycle_position = (week - 1) % 8
-        assigned_pool = (elder_idx + cycle_position) % 8
+    for week in range(1, ROTATION_WEEKS + 1):
+        cycle_position = (week - 1) % POOL_COUNT
+        assigned_pool = (elder_idx + cycle_position) % POOL_COUNT
 
         if assigned_pool == family_pool:
             problem_weeks.append(week)

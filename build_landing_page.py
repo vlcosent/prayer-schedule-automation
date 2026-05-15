@@ -174,7 +174,7 @@ def render(entries: list[dict], current_exists: bool) -> str:
         {archive_block}
     </main>
     <footer>
-        <p>Schedule rotates 8 elders through church families on an 8-week cycle.<br>
+        <p>Schedule rotates 7 elders through church families on a 7-week cycle.<br>
            Generated {generated}</p>
     </footer>
 </body>

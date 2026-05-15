@@ -1,10 +1,10 @@
 """Pool distribution, week-number arithmetic, and weekly family assignment.
 
 This is the heart of the V10 rotation algorithm. ``create_v10_master_pools``
-distributes the 161 families round-robin into 8 pools.
+distributes the 161 families round-robin into 7 pools.
 ``assign_families_for_week_v10`` selects the weekly pool per elder, filters
 out each elder's own family, and redistributes filtered families according
-to :data:`FIXED_REASSIGNMENT_MAP` to guarantee 19-21 families per elder and
+to :data:`FIXED_REASSIGNMENT_MAP` to guarantee 22-24 families per elder and
 no week-to-week repeats.
 """
 
@@ -32,7 +32,7 @@ def calculate_continuous_week(monday_date: datetime) -> int:
     """Return a continuous week number that never resets at year boundaries.
 
     ISO week numbers reset from 52/53 to 1 at the start of each ISO year,
-    which causes the 8-week rotation cycle_position to jump (e.g., from 3 to 0
+    which causes the rotation cycle_position to jump (e.g., from 3 to 0
     instead of advancing to 4). This function returns a monotonically increasing
     week number based on a fixed reference date (:data:`REFERENCE_MONDAY`),
     ensuring the cycle always advances by exactly 1 each week.
@@ -52,16 +52,16 @@ def calculate_continuous_week(monday_date: datetime) -> int:
 def create_v10_master_pools() -> list[list[str]]:
     """Distribute all families round-robin into ``POOL_COUNT`` sorted pools.
 
-    Returns a list of ``POOL_COUNT`` lists. With 161 families and 8 pools,
-    Pool 0 ends up with 21 families and Pools 1-7 have 20 each.
+    Returns a list of ``POOL_COUNT`` lists. With 161 families and 7 pools,
+    each pool ends up with exactly 23 families (161 = 7 * 23).
     """
     families = parse_directory()
 
     # Create the pools.
     pools: list[list[str]] = [[] for _ in range(POOL_COUNT)]
 
-    # Distribute all families round-robin style.  This naturally achieves
-    # the target sizes (21, 20, 20, 20, 20, 20, 20, 20 for 161 families).
+    # Distribute all families round-robin style.  With 161 families and 7
+    # pools this naturally achieves 23 families in every pool.
     for i, family in enumerate(families):
         pool_idx = i % POOL_COUNT
         pools[pool_idx].append(family)
@@ -85,25 +85,26 @@ def get_master_pools() -> list[list[str]]:
     return _MASTER_POOLS
 
 
-# Fixed reassignment mapping based on conflict analysis (161 families):
-# Pool 0: 21 families, Pools 1-7: 20 families each
-# - Cycle week 1: Alan Judd's, Frank Bohannon's, and Kyle Fairman's families filtered
-# - Cycle week 4: Brian McLaughlin's and Larry McDuffee's families filtered
-# - Cycle week 5: L.A. Fox's family filtered
-# - Cycle week 6: Jerry Wood's family filtered
-# - Cycle week 7: Jonathan Loveday's family filtered
+# Fixed reassignment mapping based on conflict analysis (161 families, 7 pools
+# of 23 families each). For each cycle position 0..6, any elder whose own
+# family lands in their assigned pool has it filtered out; this map names the
+# elder who absorbs that filtered family.
+# - Cycle 1: Larry McDuffee's family filtered (in Pool 0)
+# - Cycle 2: Brian McLaughlin's family filtered (in Pool 2)
+# - Cycle 3: Frank Bohannon's, Jonathan Loveday's, and L.A. Fox's families filtered
+# - Cycle 4: Jerry Wood's family filtered (in Pool 6)
+# - Cycle 6: Kyle Fairman's family filtered (in Pool 3)
 #
-# Reassignments chosen to maintain 19-21 family balance and avoid repeats:
-# Each target verified SAFE (family not in target's adjacent-week pools)
+# Reassignments chosen to maintain 22-24 family balance and avoid repeats:
+# Each target verified SAFE (family not in target's adjacent-week pools).
 FIXED_REASSIGNMENT_MAP: dict[int, dict[str, str]] = {
-    1: {"Alan Judd": "Jerry Wood",               # Alan(19) filtered -> Jerry(20->21) SAFE
-        "Frank Bohannon": "Jonathan Loveday",    # Frank(19) filtered -> Jonathan(20->21) SAFE
-        "Kyle Fairman": "Brian McLaughlin"},     # Kyle(19) filtered -> Brian(20->21) SAFE
-    4: {"Brian McLaughlin": "Larry McDuffee",    # Brian(19) filtered -> Larry(19->20) SAFE
-        "Larry McDuffee": "Brian McLaughlin"},   # Larry(19) filtered -> Brian(19->20) SAFE
-    5: {"L.A. Fox": "Jonathan Loveday"},         # L.A.(19) filtered -> Jonathan(20->21) SAFE
-    6: {"Jerry Wood": "Kyle Fairman"},           # Jerry(19) filtered -> Kyle(20->21) SAFE
-    7: {"Jonathan Loveday": "Frank Bohannon"},   # Jonathan(19) filtered -> Frank(20->21) SAFE
+    1: {"Larry McDuffee": "Frank Bohannon"},     # Larry(22) filtered -> Frank(23->24) SAFE
+    2: {"Brian McLaughlin": "Jerry Wood"},       # Brian(22) filtered -> Jerry(23->24) SAFE
+    3: {"Frank Bohannon": "Jonathan Loveday",    # Frank(22) filtered -> Jonathan(22->23) SAFE
+        "Jonathan Loveday": "Brian McLaughlin",  # Jonathan(22) filtered -> Brian(23->24) SAFE
+        "L.A. Fox": "Frank Bohannon"},           # L.A.(22) filtered -> Frank(22->23) SAFE
+    4: {"Jerry Wood": "Brian McLaughlin"},       # Jerry(22) filtered -> Brian(23->24) SAFE
+    6: {"Kyle Fairman": "Brian McLaughlin"},     # Kyle(22) filtered -> Brian(23->24) SAFE
 }
 
 
@@ -112,8 +113,8 @@ def assign_families_for_week_v10(week_number: int) -> dict[str, list[str]]:
 
     Behaviour (preserves the V10 contract used by the helper scripts):
 
-    1. Each elder ``i`` is assigned pool ``(i + cycle_position) % 8`` where
-       ``cycle_position = (week_number - 1) % 8``.
+    1. Each elder ``i`` is assigned pool ``(i + cycle_position) % POOL_COUNT``
+       where ``cycle_position = (week_number - 1) % POOL_COUNT``.
     2. If an elder's own family is in their assigned pool, it is filtered
        out and re-targeted to another elder via :data:`FIXED_REASSIGNMENT_MAP`.
     3. The reassignment targets are pre-verified to be adjacency-safe (no
@@ -123,7 +124,7 @@ def assign_families_for_week_v10(week_number: int) -> dict[str, list[str]]:
     """
     master_pools = get_master_pools()
 
-    # Calculate position in the 8-week cycle.
+    # Calculate position in the rotation cycle.
     cycle_position = (week_number - 1) % POOL_COUNT
 
     # First, collect filtered (elder-own) families and who owns them.

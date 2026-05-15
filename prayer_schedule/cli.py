@@ -11,7 +11,7 @@ from .algorithm import (
     calculate_continuous_week,
     calculate_week_number,
 )
-from .config import DESKTOP_DIR
+from .config import DESKTOP_DIR, POOL_COUNT
 from .elders import get_week_schedule
 from .email_service import send_daily_combined_email
 from .file_io import archive_previous_schedule, log_activity, update_desktop_files
@@ -104,11 +104,11 @@ def main() -> bool:
         print("=" * 60)
         print(f"Today: {today_name}, {today.strftime('%B %d, %Y')}")
         print(f"Week {week_num} ({monday.strftime('%B %d')} - {(monday + timedelta(days=6)).strftime('%B %d, %Y')})")
-        print(f"Continuous week: {continuous_week_num} (cycle position: {(continuous_week_num - 1) % 8})")
+        print(f"Continuous week: {continuous_week_num} (cycle position: {(continuous_week_num - 1) % POOL_COUNT})")
         print(f"\nALL FILES WILL BE SAVED TO: {DESKTOP_DIR}")
 
         # Generate assignments using the continuous week number to avoid
-        # year-boundary discontinuities in the 8-week rotation cycle.
+        # year-boundary discontinuities in the rotation cycle.
         elder_assignments = assign_families_for_week_v10(continuous_week_num)
 
         # Verify assignments.

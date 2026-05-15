@@ -272,8 +272,8 @@ def generate_html_schedule(
 
         <div class="content">
             <div class="note">
-                <strong>Note:</strong> Each elder has 19-21 families to ensure complete rotation coverage.
-                Monday always has two elders assigned for prayer.
+                <strong>Note:</strong> Each elder has 22-24 families to ensure complete rotation coverage.
+                Each day of the week has one elder assigned for prayer.
                 Daily emails are sent each morning to remind everyone of today's prayer assignment.
             </div>
 
@@ -429,7 +429,7 @@ CROSSVILLE CHURCH OF CHRIST
 Week {week_number}: {date_range}
 ============================================================
 
-Note: Monday always has two elders assigned.
+Note: Each day of the week has one elder assigned.
 
 """
 
