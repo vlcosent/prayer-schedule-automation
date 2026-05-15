@@ -89,7 +89,10 @@ jobs:
 
     - name: Install test dependencies
       if: steps.schedule_gate.outputs.skip != 'true'
-      run: python -m pip install --upgrade pip pytest
+      # Pin the pytest major so a surprise breaking release at 7 AM Central
+      # doesn't take the daily-email workflow down. Bump the upper bound
+      # intentionally after testing locally.
+      run: python -m pip install --upgrade pip 'pytest>=8,<10'
 
     - name: Run pytest suite
       if: steps.schedule_gate.outputs.skip != 'true'

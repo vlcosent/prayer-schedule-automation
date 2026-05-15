@@ -46,6 +46,13 @@ def calculate_continuous_week(monday_date: datetime) -> int:
     ref = REFERENCE_MONDAY.replace(tzinfo=None)
     md = monday_date.replace(tzinfo=None) if monday_date.tzinfo else monday_date
     days_diff = (md - ref).days
+    # Pre-reference dates would silently produce a syntactically valid but
+    # semantically wrong cycle_position via ``(week-1) % POOL_COUNT``; fail
+    # loudly instead. REFERENCE_MONDAY itself (days_diff == 0, week 1) is legal.
+    if days_diff < 0:
+        raise ValueError(
+            f"date {monday_date} predates REFERENCE_MONDAY {REFERENCE_MONDAY}"
+        )
     return (days_diff // 7) + 1  # 1-based to match ISO week convention
 
 

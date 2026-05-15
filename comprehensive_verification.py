@@ -257,9 +257,11 @@ def verify_year_boundary():
 
     all_passed = True
 
-    # Test multiple year boundaries
+    # Test multiple year boundaries. The 2025->2026 case starts at REFERENCE_MONDAY
+    # (= ISO Week 1 of 2026) since dates before the reference are no longer
+    # defined by calculate_continuous_week.
     year_boundaries = [
-        ("2025->2026", datetime(2025, 12, 1)),   # Start 4 weeks before boundary
+        ("2025->2026", REFERENCE_MONDAY.replace(tzinfo=None)),  # = 2025-12-29
         ("2026->2027", datetime(2026, 12, 7)),   # 2026 has 53 ISO weeks
         ("2027->2028", datetime(2027, 12, 6)),
         ("2028->2029", datetime(2028, 12, 11)),  # 2028 is a leap year

@@ -153,15 +153,27 @@ def archive_previous_schedule() -> bool:
         return False
 
 
+_LOG_MAX_BYTES: int = 1_048_576  # 1 MB; rotates to <log>.1 above this size.
+
+
 def log_activity(message: str) -> None:
     """Append ``message`` to the activity log file with a UTC-less timestamp.
 
     Matches the original line format exactly::
 
         [YYYY-MM-DD HH:MM:SS] <message>
+
+    Rotates the log to ``<log>.1`` (single generation, overwritten each time)
+    once it exceeds ``_LOG_MAX_BYTES`` so desktop installs don't accumulate an
+    unbounded file. CI doesn't hit this path because each run starts fresh.
     """
     try:
         log_file = os.path.join(DESKTOP_DIR, _LOG_FILE_NAME)
+        try:
+            if os.path.getsize(log_file) > _LOG_MAX_BYTES:
+                os.replace(log_file, f"{log_file}.1")
+        except FileNotFoundError:
+            pass  # First write — nothing to rotate.
         with open(log_file, "a", encoding="utf-8") as handle:
             handle.write(
                 f"[{datetime.now(CENTRAL_TZ).strftime('%Y-%m-%d %H:%M:%S')}] {message}\n"

@@ -214,18 +214,23 @@ def parse_directory(csv_content: str | None = None) -> list[str]:
             continue
 
         try:
-            last_name = row["Last Name"]
-            first_names = row["First Names"]
+            last_name_raw = row["Last Name"]
+            first_names_raw = row["First Names"]
         except KeyError as exc:
             raise ValueError(
                 f"DIRECTORY_CSV row {row_number}: missing column {exc!s}"
             ) from exc
 
-        if last_name is None or not str(last_name).strip():
+        # Strip surrounding whitespace so a stray trailing space in the CSV
+        # cannot silently desync ELDER_FAMILIES lookups in algorithm/validation.
+        last_name = (last_name_raw or "").strip()
+        first_names = (first_names_raw or "").strip()
+
+        if not last_name:
             raise ValueError(
                 f"DIRECTORY_CSV row {row_number}: empty 'Last Name' field"
             )
-        if first_names is None or not str(first_names).strip():
+        if not first_names:
             raise ValueError(
                 f"DIRECTORY_CSV row {row_number}: empty 'First Names' field"
             )

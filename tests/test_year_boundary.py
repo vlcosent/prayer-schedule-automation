@@ -54,6 +54,20 @@ def test_no_family_overlap_across_year_boundary(
         assert not overlap, f"{elder}: {week1}→{week2} repeated families: {overlap}"
 
 
+def test_2026_to_2027_boundary_is_iso_week_53() -> None:
+    """Document that the 2026→2027 boundary in YEAR_BOUNDARIES actually exercises
+    a 53-week ISO year (2026 has 53 ISO weeks; the next is 2032). Without this
+    assertion, a future maintainer could swap the date and silently lose the
+    only 53-week-year regression coverage.
+    """
+    week53_monday = datetime(2026, 12, 28, tzinfo=CENTRAL_TZ)
+    week1_monday = datetime(2027, 1, 4, tzinfo=CENTRAL_TZ)
+    assert week53_monday.isocalendar().week == 53
+    assert week1_monday.isocalendar().week == 1
+    # Continuous week must still advance by exactly 1 across that boundary.
+    assert calculate_continuous_week(week1_monday) - calculate_continuous_week(week53_monday) == 1
+
+
 def test_continuous_week_matches_iso_within_2026() -> None:
     """Within 2026, continuous_week must equal ISO week (by design of REFERENCE_MONDAY)."""
     monday = REFERENCE_MONDAY
@@ -73,3 +87,15 @@ def test_leap_year_2028_week_math() -> None:
     # Assignments should still be valid.
     assignments = assign_families_for_week_v10(cw)
     assert sum(len(v) for v in assignments.values()) == 161
+
+
+def test_calculate_continuous_week_rejects_pre_reference_date() -> None:
+    """Dates before REFERENCE_MONDAY must raise, not silently return 0 or negative."""
+    pre_ref = datetime(2025, 12, 22, tzinfo=CENTRAL_TZ)  # 1 week before REFERENCE_MONDAY
+    with pytest.raises(ValueError, match="predates REFERENCE_MONDAY"):
+        calculate_continuous_week(pre_ref)
+
+
+def test_calculate_continuous_week_at_reference_monday_is_week_one() -> None:
+    """REFERENCE_MONDAY itself is legal and equals week 1."""
+    assert calculate_continuous_week(REFERENCE_MONDAY) == 1

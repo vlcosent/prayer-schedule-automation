@@ -7,7 +7,14 @@ import pytest
 
 from prayer_schedule import algorithm
 from prayer_schedule.algorithm import assign_families_for_week_v10, calculate_continuous_week
-from prayer_schedule.config import CENTRAL_TZ
+from prayer_schedule.config import (
+    CENTRAL_TZ,
+    DIRECTORY_FAMILY_COUNT,
+    ELDER_COUNT,
+    FAMILIES_PER_ELDER_MAX,
+    FAMILIES_PER_ELDER_MIN,
+)
+from prayer_schedule.directory import parse_directory
 from prayer_schedule.elders import get_week_schedule
 from prayer_schedule.validation import (
     validate_elder_data,
@@ -69,6 +76,18 @@ def test_verify_email_date_rejects_out_of_week() -> None:
     wrong_monday = datetime(2026, 4, 6, tzinfo=CENTRAL_TZ)  # week before
     ok, _ = verify_email_date(friday, wrong_monday)
     assert not ok
+
+
+def test_family_per_elder_bounds_match_directory_size() -> None:
+    """The tuning window must straddle floor/ceil of directory_size / elders."""
+    actual = len(parse_directory())
+    assert actual == DIRECTORY_FAMILY_COUNT, (
+        f"DIRECTORY_FAMILY_COUNT={DIRECTORY_FAMILY_COUNT} disagrees with parser ({actual})"
+    )
+    lower = actual // ELDER_COUNT
+    upper = -(-actual // ELDER_COUNT)  # ceil
+    assert FAMILIES_PER_ELDER_MIN <= lower
+    assert upper <= FAMILIES_PER_ELDER_MAX
 
 
 def test_validate_reassignment_map_detects_missing_entry(

@@ -116,3 +116,56 @@ def test_email_html_escapes_elder_and_family_names() -> None:
     # The raw ``&`` joining the elder name with ``Co`` must be escaped.
     assert "Elder&gt; & Co" not in html
     assert "Elder&gt; &amp; Co" in html
+
+
+def test_send_attaches_utf8_mime_parts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both MIMEText parts must declare charset=utf-8 so non-ASCII names in a
+    future roster don't trip the default us-ascii encoder."""
+    monkeypatch.setattr(config, "EMAIL_ENABLED", True)
+    monkeypatch.setattr(config, "SENDER_PASSWORD", "fake-app-password")
+    monkeypatch.setattr(config, "RECIPIENT_EMAILS", "a@b.com")
+
+    factory, sent_messages = _make_smtp_factory()
+    monkeypatch.setattr(email_service.smtplib, "SMTP", factory)
+
+    today, monday, week_num, assignments = _fixture_today_and_assignments()
+    assert email_service.send_daily_combined_email(today, week_num, monday, assignments) is True
+
+    assert sent_messages, "no message captured"
+    msg = sent_messages[0]
+    parts = msg.get_payload()
+    assert len(parts) == 2, "expected plain + html alternative parts"
+    charsets = {part.get_content_charset() for part in parts}
+    assert charsets == {"utf-8"}, charsets
+
+
+def test_send_rejects_elder_name_with_crlf(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A CR/LF in today's elder list must abort the send before SMTP is opened
+    so a header-injection attempt can never reach the wire."""
+    monkeypatch.setattr(config, "EMAIL_ENABLED", True)
+    monkeypatch.setattr(config, "SENDER_PASSWORD", "fake-app-password")
+    monkeypatch.setattr(config, "RECIPIENT_EMAILS", "a@b.com")
+
+    factory, _sent_messages = _make_smtp_factory()
+    monkeypatch.setattr(email_service.smtplib, "SMTP", factory)
+
+    today, monday, week_num, assignments = _fixture_today_and_assignments()
+
+    # Today is a Friday in the fixture; replace the Friday entry with a
+    # CR/LF-poisoned elder name. The function should refuse to construct the
+    # subject and return False without contacting SMTP.
+    poisoned_schedule = {
+        "Monday": ["Sam"], "Tuesday": ["Sam"], "Wednesday": ["Sam"],
+        "Thursday": ["Sam"],
+        "Friday": ["Bad\r\nBcc: evil@example.com"],
+        "Saturday": ["Sam"], "Sunday": ["Sam"],
+    }
+    monkeypatch.setattr(email_service, "get_week_schedule", lambda _w: poisoned_schedule)
+
+    result = email_service.send_daily_combined_email(today, week_num, monday, assignments)
+    assert result is False
+    assert factory.call_count == 0, "SMTP must not be opened when the subject is poisoned"

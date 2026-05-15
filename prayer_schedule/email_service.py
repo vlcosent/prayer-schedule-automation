@@ -31,6 +31,19 @@ from .validation import verify_email_date
 _EMAIL_RX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
+def _reject_crlf(value: str, field: str) -> str:
+    """Return ``value`` unchanged, or raise if it would smuggle headers.
+
+    Python's default ``compat32`` email policy stores header strings verbatim,
+    so a CR or LF in a header value would inject a new header (e.g., a
+    ``Bcc:`` line) into the wire bytes. Elder/recipient values are trusted in
+    this codebase, but asserting the invariant at the boundary documents it.
+    """
+    if "\r" in value or "\n" in value:
+        raise ValueError(f"{field} contains CR/LF; refusing to construct header")
+    return value
+
+
 def _email_styles() -> dict[str, str]:
     """Return inline CSS snippets used by the email HTML builder.
 
@@ -333,6 +346,7 @@ def send_daily_combined_email(
             return False
 
         elder_names = " & ".join(todays_elders)
+        _reject_crlf(elder_names, "elder names")
 
         # Build plain text version.
         end_date = monday + timedelta(days=6)
@@ -360,7 +374,10 @@ def send_daily_combined_email(
             current_date += timedelta(days=1)
 
         # Build email content once (reused for each recipient).
-        subject = f"Daily Prayer Reminder - {today_formatted}: {elder_names}"
+        subject = _reject_crlf(
+            f"Daily Prayer Reminder - {today_formatted}: {elder_names}",
+            "subject",
+        )
         plain_body = f"""Crossville Church of Christ
 Daily Prayer Reminder - {today_formatted}: {elder_names}
 Week {week_num} ({date_range})
@@ -419,8 +436,8 @@ View the full schedule online: https://vlcosent.github.io/prayer-schedule-automa
             for recipient in recipients:
                 try:
                     msg = MIMEMultipart('alternative')
-                    msg['From'] = config.SENDER_EMAIL
-                    msg['To'] = recipient
+                    msg['From'] = _reject_crlf(config.SENDER_EMAIL, "SENDER_EMAIL")
+                    msg['To'] = _reject_crlf(recipient, "recipient")
                     msg['Subject'] = subject
                     msg['Date'] = formatdate(localtime=True)
                     msg['Message-ID'] = make_msgid(domain='gmail.com')
@@ -434,8 +451,10 @@ View the full schedule online: https://vlcosent.github.io/prayer-schedule-automa
                     msg['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
                     msg['X-Mailer'] = 'Crossville-CoC-Prayer-Schedule/1.0'
 
-                    msg.attach(MIMEText(plain_body, 'plain'))
-                    msg.attach(MIMEText(html_body, 'html'))
+                    # Explicit utf-8 so non-ASCII names (e.g., José) don't trip
+                    # the default us-ascii encoder.
+                    msg.attach(MIMEText(plain_body, 'plain', 'utf-8'))
+                    msg.attach(MIMEText(html_body, 'html', 'utf-8'))
 
                     assert server is not None  # narrows type for mypy
                     server.send_message(msg)

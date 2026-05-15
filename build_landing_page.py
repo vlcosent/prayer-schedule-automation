@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from html import escape
 
 
@@ -79,7 +79,7 @@ def render(entries: list[dict], current_exists: bool) -> str:
             "</section>"
         )
 
-    generated = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     return f"""<!DOCTYPE html>
 <html lang="en">

@@ -108,3 +108,45 @@ def test_archive_does_not_overwrite_existing(
     )
     assert "First content" in bodies[0]
     assert "Second content" in bodies[1]
+
+
+def test_log_activity_rotates_when_oversized(
+    tmp_path: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Once the log exceeds ``_LOG_MAX_BYTES``, the next write must move the
+    old log to ``<log>.1`` and start fresh so desktop installs don't grow an
+    unbounded file."""
+    monkeypatch.setattr(file_io, "DESKTOP_DIR", str(tmp_path))
+    monkeypatch.setattr(file_io, "_LOG_MAX_BYTES", 100)  # tiny for the test
+
+    log_file = os.path.join(str(tmp_path), file_io._LOG_FILE_NAME)
+    with open(log_file, "w", encoding="utf-8") as handle:
+        handle.write("x" * 200)  # already over the limit
+    assert os.path.getsize(log_file) > 100
+
+    file_io.log_activity("after-rotation message")
+
+    rotated = f"{log_file}.1"
+    assert os.path.exists(rotated), "rotated copy not created"
+    assert os.path.getsize(rotated) > 100, "rotated copy should contain the prior content"
+    assert os.path.getsize(log_file) < 100, "new log should start fresh"
+    with open(log_file, encoding="utf-8") as handle:
+        body = handle.read()
+    assert "after-rotation message" in body
+
+
+def test_log_activity_does_not_rotate_under_threshold(
+    tmp_path: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Below the threshold, no rotation occurs."""
+    monkeypatch.setattr(file_io, "DESKTOP_DIR", str(tmp_path))
+    monkeypatch.setattr(file_io, "_LOG_MAX_BYTES", 1_048_576)
+
+    file_io.log_activity("first")
+    file_io.log_activity("second")
+
+    log_file = os.path.join(str(tmp_path), file_io._LOG_FILE_NAME)
+    assert os.path.exists(log_file)
+    assert not os.path.exists(f"{log_file}.1")
