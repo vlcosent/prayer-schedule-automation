@@ -67,9 +67,11 @@ Create these **three** secrets:
 - **Value:** Comma-separated list of all recipient emails (see full list below)
 - Click **Add secret**
 
-**Current Recipients (10 total):**
+> **IMPORTANT:** When the elder roster changes, this secret must be updated manually by a repo admin. The list below is the source of truth for the *intended* recipients; the GitHub Secret itself can only be edited in the GitHub Settings UI.
+
+**Current Recipients (9 total):**
 ```
-elders@crossvillechurchofchrist.org,carolsparks.cs@gmail.com,frankbo72@gmail.com,kfair232@gmail.com,laccafox@gmail.com,alanhjudd@gmail.com,lovedayj@frontiernet.net,larrymcduffee@gmail.com,brianmclaughlin423@gmail.com,jbw@benlomand.net
+elders@crossvillechurchofchrist.org,carolsparks.cs@gmail.com,frankbo72@gmail.com,kfair232@gmail.com,laccafox@gmail.com,lovedayj@frontiernet.net,larrymcduffee@gmail.com,brianmclaughlin423@gmail.com,jbw@benlomand.net
 ```
 
 | Recipient | Email | Role |
@@ -79,7 +81,6 @@ elders@crossvillechurchofchrist.org,carolsparks.cs@gmail.com,frankbo72@gmail.com
 | Frank Bohannon | frankbo72@gmail.com | Elder |
 | Kyle Fairman | kfair232@gmail.com | Elder |
 | L.A. Fox | laccafox@gmail.com | Elder |
-| Alan Judd | alanhjudd@gmail.com | Elder |
 | Jonathan Loveday | lovedayj@frontiernet.net | Elder |
 | Larry McDuffee | larrymcduffee@gmail.com | Elder |
 | Brian McLaughlin | brianmclaughlin423@gmail.com | Elder |
@@ -114,7 +115,7 @@ If you want to test locally before pushing:
 export EMAIL_ENABLED=true
 export SENDER_EMAIL="churchprayerlistelders@gmail.com"
 export SENDER_PASSWORD="your-app-password-here"
-export RECIPIENT_EMAILS="elders@crossvillechurchofchrist.org,carolsparks.cs@gmail.com,frankbo72@gmail.com,kfair232@gmail.com,laccafox@gmail.com,alanhjudd@gmail.com,lovedayj@frontiernet.net,larrymcduffee@gmail.com,brianmclaughlin423@gmail.com,jbw@benlomand.net"
+export RECIPIENT_EMAILS="elders@crossvillechurchofchrist.org,carolsparks.cs@gmail.com,frankbo72@gmail.com,kfair232@gmail.com,laccafox@gmail.com,lovedayj@frontiernet.net,larrymcduffee@gmail.com,brianmclaughlin423@gmail.com,jbw@benlomand.net"
 
 # Run the script
 python prayer_schedule_V10_DESKTOP_FIXED.py
@@ -125,7 +126,7 @@ For Windows:
 set EMAIL_ENABLED=true
 set SENDER_EMAIL=churchprayerlistelders@gmail.com
 set SENDER_PASSWORD=your-app-password-here
-set RECIPIENT_EMAILS=elders@crossvillechurchofchrist.org,carolsparks.cs@gmail.com,frankbo72@gmail.com,kfair232@gmail.com,laccafox@gmail.com,alanhjudd@gmail.com,lovedayj@frontiernet.net,larrymcduffee@gmail.com,brianmclaughlin423@gmail.com,jbw@benlomand.net
+set RECIPIENT_EMAILS=elders@crossvillechurchofchrist.org,carolsparks.cs@gmail.com,frankbo72@gmail.com,kfair232@gmail.com,laccafox@gmail.com,lovedayj@frontiernet.net,larrymcduffee@gmail.com,brianmclaughlin423@gmail.com,jbw@benlomand.net
 
 python prayer_schedule_V10_DESKTOP_FIXED.py
 ```
@@ -136,15 +137,15 @@ python prayer_schedule_V10_DESKTOP_FIXED.py
 
 A single combined email is sent every day (Mon-Sun) containing today's prayer assignment plus a week-at-a-glance overview. On Mondays the email also includes full prayer lists for every elder that week.
 
-**Subject:** `Daily Prayer Reminder - <Day, Month D, YYYY>: <Elder Name(s)>`
+**Subject:** `Daily Prayer Reminder - <Day, Month D, YYYY>: <Elder Name>`
 
-Example: `Daily Prayer Reminder - Monday, November 10, 2025: Alan Judd & Brian McLaughlin`
+Example: `Daily Prayer Reminder - Monday, May 18, 2026: Brian McLaughlin`
 
 **Body (high-level):**
 ```
-Daily Prayer Reminder - <Day, Month D, YYYY>: <Elder Name(s)>
+Daily Prayer Reminder - <Day, Month D, YYYY>: <Elder Name>
 
-Today's Elder: <Elder Name(s)>
+Today's Elder: <Elder Name>
 <Today's family prayer list>
 
 <Week overview: all 7 days with assigned elders, today's row highlighted>
@@ -164,7 +165,7 @@ View the full schedule online: https://vlcosent.github.io/prayer-schedule-automa
    - `[EMAIL] Connecting to smtp.gmail.com:587...`
    - `[EMAIL] Logging in as churchprayerlistelders@gmail.com...`
    - `[EMAIL] Sending to: elders@crossvillechurchofchrist.org, carolsparks.cs@gmail.com, frankbo72@gmail.com, ...`
-   - `[✓] Email sent successfully to 10 recipient(s)`
+   - `[✓] Email sent successfully to 9 recipient(s)`
 
 ## Troubleshooting
 
@@ -192,7 +193,7 @@ View the full schedule online: https://vlcosent.github.io/prayer-schedule-automa
 
 **Solution:**
 - Verify the RECIPIENT_EMAILS secret exists in GitHub Settings
-- Ensure the value contains all 10 recipient emails (see Secret 3 above for full list)
+- Ensure the value contains all 9 recipient emails (see Secret 3 above for full list)
 
 ### Email not received
 

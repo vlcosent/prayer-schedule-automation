@@ -17,6 +17,7 @@ from .config import (
     FAMILIES_PER_ELDER_MAX,
     FAMILIES_PER_ELDER_MIN,
     POOL_COUNT,
+    ROTATION_WEEKS,
 )
 from .directory import parse_directory
 from .elders import ELDER_DATA, ELDER_FAMILIES, ELDERS
@@ -185,7 +186,7 @@ def verify_schedule(assignments: dict[str, list[str]]) -> tuple[bool, list[str]]
     """Verify a week of assignments meets the algorithm invariants."""
     issues: list[str] = []
 
-    # Check family counts (19-21 inclusive is acceptable).
+    # Check family counts (FAMILIES_PER_ELDER_MIN..MAX inclusive is acceptable).
     for elder, families in assignments.items():
         actual = len(families)
         if actual < FAMILIES_PER_ELDER_MIN or actual > FAMILIES_PER_ELDER_MAX:
@@ -239,7 +240,7 @@ def verify_today_elder_assignment(
 
 
 def verify_v10_algorithm() -> bool:
-    """Run the 5 algorithm checks across 16 weeks and print human-readable results.
+    """Run the 5 algorithm checks across two full cycles and print results.
 
     Returns ``True`` when every check passes. Output matches the original
     script's formatting verbatim (this is the ``-> ok/fail`` message the CI
@@ -253,8 +254,9 @@ def verify_v10_algorithm() -> bool:
     # Track histories.
     elder_histories: dict[str, list[set[str]]] = {elder: [] for elder in ELDERS}
 
-    # Generate 16 weeks of assignments.
-    for week in range(32, 48):
+    # Generate two full cycles of assignments.
+    history_weeks = ROTATION_WEEKS * 2
+    for week in range(32, 32 + history_weeks):
         assignments = assign_families_for_week_v10(week)
         for elder, families in assignments.items():
             elder_histories[elder].append(set(families))
@@ -264,11 +266,13 @@ def verify_v10_algorithm() -> bool:
     week_assignments = assign_families_for_week_v10(32)
     for elder, families in week_assignments.items():
         actual = len(families)
-        # We accept 19-21 families as valid.
-        if 19 <= actual <= 21:
+        if FAMILIES_PER_ELDER_MIN <= actual <= FAMILIES_PER_ELDER_MAX:
             print(f"   [OK] {elder}: {actual} families")
         else:
-            print(f"   [X] {elder}: {actual} families (should be 19-21)")
+            print(
+                f"   [X] {elder}: {actual} families "
+                f"(should be {FAMILIES_PER_ELDER_MIN}-{FAMILIES_PER_ELDER_MAX})"
+            )
             all_perfect = False
 
     # Check 2: Elder own family.
@@ -311,25 +315,25 @@ def verify_v10_algorithm() -> bool:
     if not week_perfect:
         all_perfect = False
 
-    # Check 4: 8-week cycle.
-    print("\n4. EIGHT-WEEK CYCLE CHECK:")
+    # Check 4: Cycle repeats.
+    print(f"\n4. {ROTATION_WEEKS}-WEEK CYCLE CHECK:")
     for elder in ELDERS:
         match = True
-        for i in range(8):
-            if elder_histories[elder][i] != elder_histories[elder][i + 8]:
+        for i in range(ROTATION_WEEKS):
+            if elder_histories[elder][i] != elder_histories[elder][i + ROTATION_WEEKS]:
                 match = False
                 break
 
         if match:
-            print(f"   [OK] {elder}: 8-week cycle repeats correctly")
+            print(f"   [OK] {elder}: {ROTATION_WEEKS}-week cycle repeats correctly")
         else:
-            print(f"   [X] {elder}: 8-week cycle doesn't match")
+            print(f"   [X] {elder}: {ROTATION_WEEKS}-week cycle doesn't match")
             all_perfect = False
 
     # Check 5: All families covered.
     print("\n5. FAMILY COVERAGE CHECK:")
     all_families_used: set[str] = set()
-    for week in range(8):  # Check one complete cycle.
+    for week in range(ROTATION_WEEKS):  # Check one complete cycle.
         assignments = assign_families_for_week_v10(week + 32)
         for families in assignments.values():
             all_families_used.update(families)

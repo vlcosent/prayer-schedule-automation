@@ -8,24 +8,30 @@ from prayer_schedule.algorithm import (
     create_v10_master_pools,
     get_master_pools,
 )
+from prayer_schedule.config import (
+    FAMILIES_PER_ELDER_MAX,
+    FAMILIES_PER_ELDER_MIN,
+    POOL_COUNT,
+    ROTATION_WEEKS,
+)
 
 
-# Test a range wide enough to cover two full 8-week cycles.
-WEEK_RANGE = range(32, 48)
+# Test a range wide enough to cover two full rotation cycles.
+WEEK_RANGE = range(32, 32 + ROTATION_WEEKS * 2)
 
 
 def test_pool_distribution_sums_to_161() -> None:
     pools = create_v10_master_pools()
-    assert len(pools) == 8
+    assert len(pools) == POOL_COUNT
     total = sum(len(p) for p in pools)
     assert total == 161
 
 
-def test_pool_sizes_19_to_21() -> None:
+def test_pool_sizes_evenly_split() -> None:
     pools = create_v10_master_pools()
-    # 161 = 20*8 + 1 → one pool has 21, the rest have 20.
+    # 161 = 23 * 7 → every pool has exactly 23 families.
     sizes = sorted(len(p) for p in pools)
-    assert sizes == [20, 20, 20, 20, 20, 20, 20, 21]
+    assert sizes == [23] * POOL_COUNT
 
 
 def test_no_family_in_two_pools() -> None:
@@ -52,11 +58,14 @@ def test_each_week_covers_161_families(week: int, directory_families: list[str])
 
 
 @pytest.mark.parametrize("week", list(WEEK_RANGE))
-def test_each_elder_gets_19_to_21(week: int, elders: list[str]) -> None:
+def test_each_elder_gets_in_range(week: int, elders: list[str]) -> None:
     assignments = assign_families_for_week_v10(week)
     assert set(assignments.keys()) == set(elders)
     for elder, fams in assignments.items():
-        assert 19 <= len(fams) <= 21, (elder, len(fams))
+        assert FAMILIES_PER_ELDER_MIN <= len(fams) <= FAMILIES_PER_ELDER_MAX, (
+            elder,
+            len(fams),
+        )
 
 
 @pytest.mark.parametrize("week", list(WEEK_RANGE))
@@ -75,11 +84,13 @@ def test_no_duplicate_families_in_week(week: int) -> None:
     assert len(flat) == len(set(flat))
 
 
-def test_eight_week_cycle_repeats(elders: list[str]) -> None:
+def test_rotation_cycle_repeats(elders: list[str]) -> None:
     for elder in elders:
         first = assign_families_for_week_v10(32)[elder]
-        second = assign_families_for_week_v10(40)[elder]
-        assert set(first) == set(second), f"{elder}'s week 32 and week 40 differ"
+        second = assign_families_for_week_v10(32 + ROTATION_WEEKS)[elder]
+        assert set(first) == set(second), (
+            f"{elder}'s week 32 and week {32 + ROTATION_WEEKS} differ"
+        )
 
 
 def test_week_to_week_full_rotation(elders: list[str]) -> None:

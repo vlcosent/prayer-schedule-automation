@@ -14,7 +14,7 @@ from prayer_schedule.algorithm import (
     assign_families_for_week_v10,
     calculate_continuous_week,
 )
-from prayer_schedule.config import CENTRAL_TZ, REFERENCE_MONDAY
+from prayer_schedule.config import CENTRAL_TZ, POOL_COUNT, REFERENCE_MONDAY
 
 
 YEAR_BOUNDARIES = [
@@ -38,7 +38,7 @@ def test_cycle_position_advances_by_one_across_year(
     cw1 = calculate_continuous_week(week1)
     cw2 = calculate_continuous_week(week2)
     assert cw2 - cw1 == 1, f"continuous_week jumped from {cw1} to {cw2}"
-    assert ((cw2 - 1) % 8 - (cw1 - 1) % 8) % 8 == 1
+    assert ((cw2 - 1) % POOL_COUNT - (cw1 - 1) % POOL_COUNT) % POOL_COUNT == 1
 
 
 @pytest.mark.parametrize("week1, week2", YEAR_BOUNDARIES)

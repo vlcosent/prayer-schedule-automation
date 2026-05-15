@@ -1,20 +1,20 @@
 # Prayer Schedule Automation
 
-Automated prayer schedule generator for Crossville Church of Christ. Rotates 8 elders through 161 church families on a perfect 8-week cycle. Runs daily via GitHub Actions, sends email reminders, and publishes to [GitHub Pages](https://vlcosent.github.io/prayer-schedule-automation/).
+Automated prayer schedule generator for Crossville Church of Christ. Rotates 7 elders through 161 church families on a perfect 7-week cycle. Runs daily via GitHub Actions, sends email reminders, and publishes to [GitHub Pages](https://vlcosent.github.io/prayer-schedule-automation/).
 
 ## How It Works
 
-- **8 elders** rotate through **161 families** across **8 pools**
-- Each elder gets a different pool each week (19-21 families per elder)
-- After 8 weeks, every elder has prayed for every family exactly once
+- **7 elders** rotate through **161 families** across **7 pools**
+- Each elder gets a different pool each week (22-24 families per elder)
+- After 7 weeks, every elder has prayed for every family exactly once
 - No elder ever prays for their own family
-- Monday has 2 elders assigned; Tuesday-Sunday has 1 each
+- Each day of the week has one elder assigned
 
 ### Weekly Elder Schedule
 
-| Day | Elder(s) |
-|-----|----------|
-| Monday | Alan Judd & Brian McLaughlin |
+| Day | Elder |
+|-----|-------|
+| Monday | Brian McLaughlin |
 | Tuesday | Frank Bohannon |
 | Wednesday | Jerry Wood |
 | Thursday | Jonathan Loveday |
@@ -29,7 +29,7 @@ The system runs every day at **1:00 PM UTC** (8:00 AM CDT / 7:00 AM CST):
 - **Monday**: Archives previous schedule, generates new weekly schedule, sends a combined daily email (today's assignment + week overview + full prayer lists for every elder)
 - **Tuesday-Sunday**: Refreshes output files, sends a combined daily email (today's assignment + week overview)
 
-All emails go to 10 configured recipients (elder group list + individual elders + church staff).
+All emails go to 9 configured recipients (elder group list + individual elders + church staff).
 
 ### Manual Trigger
 
@@ -78,20 +78,19 @@ To temporarily disable emails, set `EMAIL_ENABLED: 'false'` in `.github/workflow
 
 To add or remove a family:
 
-1. Edit `DIRECTORY_CSV` in `prayer_schedule_V10_DESKTOP_FIXED.py` (~line 160)
-2. Recalculate `FIXED_REASSIGNMENT_MAP` (~line 470, inside `assign_families_for_week_v10()`) using `calc_reassignments.py`
-3. Update family count comments throughout the file
-4. Run `python comprehensive_verification.py` to confirm all checks pass
+1. Edit `DIRECTORY_CSV` in `prayer_schedule/directory.py`
+2. Recalculate `FIXED_REASSIGNMENT_MAP` in `prayer_schedule/algorithm.py` using `calc_reassignments.py`
+3. Run `python -m pytest tests/` to confirm all invariants still hold
 
-To change an elder, updates are needed in 6 places in the main script: `ELDERS`, `ELDER_FAMILIES`, `get_week_schedule()`, `FIXED_REASSIGNMENT_MAP`, email config, and this README. See [CLAUDE.md](CLAUDE.md) for exact line numbers.
+To change an elder, update `ELDER_DATA` in `prayer_schedule/elders.py`, regenerate `FIXED_REASSIGNMENT_MAP` in `prayer_schedule/algorithm.py`, and update the `RECIPIENT_EMAILS` GitHub secret. See [CLAUDE.md](CLAUDE.md) for the full checklist.
 
 ## Verification
 
 The system verifies 5 invariants on every run:
-1. **Family count**: 19-21 families per elder
+1. **Family count**: 22-24 families per elder
 2. **Self-prayer**: No elder has their own family
 3. **Rotation**: 100% new families every consecutive week
-4. **Cycle**: Assignments repeat exactly after 8 weeks
+4. **Cycle**: Assignments repeat exactly after 7 weeks
 5. **Coverage**: All 161 families included
 
 Run the full test suite:
