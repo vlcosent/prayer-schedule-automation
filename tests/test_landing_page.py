@@ -60,3 +60,12 @@ def test_render_escapes_unusual_filenames(tmp_path) -> None:
     (tmp_path / "Prayer_Schedule_2026-01-05_Week1_script_.txt").write_text("x")
     entries = blp.collect_archive_entries(str(tmp_path))
     assert entries == []
+
+
+def test_render_includes_utc_generated_stamp() -> None:
+    """The footer must include a timezone-aware UTC timestamp; the previous
+    implementation used the deprecated ``datetime.utcnow()`` which is slated
+    for removal in a future Python release."""
+    html = blp.render([], current_exists=False)
+    assert "Generated " in html
+    assert "UTC" in html

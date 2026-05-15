@@ -43,3 +43,18 @@ def test_parse_skips_empty_rows() -> None:
 
 def test_directory_csv_has_header() -> None:
     assert DIRECTORY_CSV.startswith("Last Name,First Names\n")
+
+
+def test_parse_strips_whitespace_from_names() -> None:
+    """A row with stray surrounding whitespace must produce a canonical family
+    string so ELDER_FAMILIES lookups remain consistent."""
+    padded_csv = 'Last Name,First Names\n"Smith ","  John "\n'
+    families = parse_directory(padded_csv)
+    assert families == ["Smith, John"]
+
+
+def test_parse_rejects_whitespace_only_field() -> None:
+    """After stripping, a whitespace-only field is treated as empty."""
+    blank_csv = 'Last Name,First Names\n"   ",John\n'
+    with pytest.raises(ValueError, match="empty 'Last Name'"):
+        parse_directory(blank_csv)

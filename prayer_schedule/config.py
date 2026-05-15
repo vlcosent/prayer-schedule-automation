@@ -53,6 +53,17 @@ POOL_COUNT: int = ELDER_COUNT
 ROTATION_WEEKS: int = 7
 FAMILIES_PER_ELDER_MIN: int = 22
 FAMILIES_PER_ELDER_MAX: int = 24
+DIRECTORY_FAMILY_COUNT: int = 161
+
+# Fail at import if the tuning constants drift out of sync with the directory
+# size. The round-robin algorithm gives every elder either floor(N/P) or
+# ceil(N/P) families; both must fall within [MIN, MAX].
+assert FAMILIES_PER_ELDER_MIN <= DIRECTORY_FAMILY_COUNT // ELDER_COUNT, (
+    "FAMILIES_PER_ELDER_MIN is larger than the directory permits"
+)
+assert -(-DIRECTORY_FAMILY_COUNT // ELDER_COUNT) <= FAMILIES_PER_ELDER_MAX, (
+    "FAMILIES_PER_ELDER_MAX is too low for the current directory size"
+)
 
 
 # ============== Email delivery tuning ==============
