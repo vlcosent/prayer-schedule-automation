@@ -12,12 +12,9 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from .config import CENTRAL_TZ
 from .elders import get_week_schedule
-
-
-def _escape_html(family: str) -> str:
-    """Escape the minimal HTML-unsafe characters (matches the original)."""
-    return family.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+from .utils import escape_attr, escape_html
 
 
 def generate_html_schedule(
@@ -290,7 +287,7 @@ def generate_html_schedule(
     current_date = start_date
     for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]:
         elders = schedule[day]
-        elder_names = " & ".join(elders)
+        elder_names = " &amp; ".join(escape_html(e) for e in elders)
         highlight_class = "highlight" if len(elders) > 1 else ""
         date_attr = current_date.strftime('%Y-%m-%d')
 
@@ -322,16 +319,18 @@ def generate_html_schedule(
 
         for elder in elders:
             prayer_group = elder_assignments[elder]
+            elder_attr = escape_attr(elder)
+            elder_text = escape_html(elder)
 
             html += f"""
-            <div class="prayer-list" data-date="{date_attr}" data-day="{day}" data-elder="{elder}" data-count="{len(prayer_group)}">
-                <h3>{elder} - {day}, {current_date.strftime('%B %d')}</h3>
+            <div class="prayer-list" data-date="{date_attr}" data-day="{day}" data-elder="{elder_attr}" data-count="{len(prayer_group)}">
+                <h3>{elder_text} - {day}, {current_date.strftime('%B %d')}</h3>
                 <p><em>{len(prayer_group)} families to pray for:</em></p>
                 <ul class="family-list">
             """
 
             for family in prayer_group:
-                family_escaped = _escape_html(family)
+                family_escaped = escape_html(family)
                 html += f"            <li>{family_escaped}</li>\n"
 
             html += """            </ul>
@@ -341,9 +340,11 @@ def generate_html_schedule(
         current_date += timedelta(days=1)
 
     # Footer with JavaScript for dynamic day highlighting.
+    # Use Central time so the "Last updated" stamp reflects church-local
+    # calendar/clock, not the runner's UTC; matches archive/log timestamps.
     html += f"""
             <div class="update-time">
-                Last updated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}
+                Last updated: {datetime.now(CENTRAL_TZ).strftime('%B %d, %Y at %I:%M %p')}
                 <br>Daily emails sent every morning. Schedule regenerated each Monday.
             </div>
         </div>
