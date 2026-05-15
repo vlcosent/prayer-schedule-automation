@@ -140,11 +140,27 @@ jobs:
           echo "No send-state or archive changes to commit"
         else
           git commit -m "Record prayer schedule run for $CENTRAL_DATE"
-          if ! git pull --rebase origin main; then
-            echo "::error::git pull --rebase failed; aborting push so state file is not lost"
-            exit 1
-          fi
-          git push
+          # Retry the rebase+push as a unit. A push rejection (someone else
+          # pushed to main since our checkout) is the expected failure mode;
+          # rebasing onto the new tip and re-pushing usually resolves it.
+          # Without this loop, a lost push means the state file never lands
+          # and the next morning retry will resend the daily email.
+          attempt=0
+          max_attempts=4
+          while true; do
+            attempt=$((attempt + 1))
+            if git pull --rebase origin main && git push; then
+              echo "State commit pushed on attempt $attempt"
+              break
+            fi
+            if [ "$attempt" -ge "$max_attempts" ]; then
+              echo "::error::git pull/push failed after $attempt attempts; state file not persisted"
+              exit 1
+            fi
+            wait_s=$((2 ** attempt))
+            echo "::warning::git pull/push attempt $attempt failed; retrying in ${wait_s}s"
+            sleep "$wait_s"
+          done
         fi
 
     - name: Upload schedule artifacts

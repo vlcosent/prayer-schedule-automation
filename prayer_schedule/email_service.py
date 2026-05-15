@@ -22,6 +22,7 @@ from email.utils import formatdate, make_msgid
 from . import config
 from .elders import get_week_schedule
 from .file_io import log_activity
+from .utils import escape_html
 from .validation import verify_email_date
 
 
@@ -110,7 +111,7 @@ def _build_combined_email_html(
     is_monday = today.weekday() == 0
 
     todays_elders = schedule.get(today_name, [])
-    elder_names_display = " &amp; ".join(todays_elders)
+    elder_names_display = " &amp; ".join(escape_html(e) for e in todays_elders)
 
     end_date = monday + timedelta(days=6)
     date_range = f"{monday.strftime('%B %d')} - {end_date.strftime('%B %d, %Y')}"
@@ -146,12 +147,11 @@ def _build_combined_email_html(
         families = elder_assignments.get(elder, [])
         family_list = ""
         for j, family in enumerate(families, 1):
-            family_escaped = family.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-            family_list += f'<div style="{s["family_item"]}">{j}. {family_escaped}</div>\n'
+            family_list += f'<div style="{s["family_item"]}">{j}. {escape_html(family)}</div>\n'
 
         today_prayer_sections += f"""
         <div style="{s['elder_block_today']}">
-            <p style="{s['elder_name']}">{elder}</p>
+            <p style="{s['elder_name']}">{escape_html(elder)}</p>
             <p style="{s['elder_count']}">{len(families)} families</p>
             {family_list}
         </div>"""
@@ -161,7 +161,7 @@ def _build_combined_email_html(
     current_date = monday
     for i, day in enumerate(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]):
         elders = schedule[day]
-        elder_names_row = " &amp; ".join(elders)
+        elder_names_row = " &amp; ".join(escape_html(e) for e in elders)
         date_str = current_date.strftime('%b %d')
 
         is_today = (day == today_name)
@@ -196,12 +196,11 @@ def _build_combined_email_html(
                 date_str = current_date.strftime('%b %d')
                 family_list = ""
                 for j, family in enumerate(families, 1):
-                    family_escaped = family.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-                    family_list += f'<div style="{s["family_item"]}">{j}. {family_escaped}</div>\n'
+                    family_list += f'<div style="{s["family_item"]}">{j}. {escape_html(family)}</div>\n'
 
                 full_prayer_lists += f"""
                 <div style="{s['elder_block']}">
-                    <p style="{s['elder_name']}">{elder} &mdash; {day}, {date_str}</p>
+                    <p style="{s['elder_name']}">{escape_html(elder)} &mdash; {day}, {date_str}</p>
                     <p style="{s['elder_count']}">{len(families)} families</p>
                     {family_list}
                 </div>"""
@@ -466,6 +465,10 @@ View the full schedule online: https://vlcosent.github.io/prayer-schedule-automa
                     f"Email sent for {today_name}, {today.strftime('%B %d, %Y')} "
                     f"to {len(succeeded)} recipient(s)"
                 )
+            # Partial success returns True so the workflow records this date
+            # as "sent" and won't re-fire. Failed addresses (logged above) are
+            # treated as permanent — an operator removes them from
+            # RECIPIENT_EMAILS rather than letting the retry loop hammer Gmail.
             return True
         else:
             print(f"   [ERROR] Email delivery failed for all {len(recipients)} recipients")

@@ -17,6 +17,25 @@ def get_today() -> datetime:
     return datetime.now(CENTRAL_TZ)
 
 
+def escape_html(value: str) -> str:
+    """Escape the HTML-unsafe characters in element-content position.
+
+    Covers ``&``, ``<``, ``>``. Suitable for content between tags (e.g.
+    ``<td>{escape_html(name)}</td>``). For attribute values, use
+    :func:`escape_attr` instead so quotes are also escaped.
+    """
+    return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def escape_attr(value: str) -> str:
+    """Escape a value for use inside a double-quoted HTML attribute.
+
+    Adds ``"`` escaping on top of :func:`escape_html` so a name containing
+    a literal double-quote cannot break out of ``attr="..."`` boundaries.
+    """
+    return escape_html(value).replace('"', "&quot;")
+
+
 def iter_week(start_date: datetime) -> Iterator[tuple[str, datetime]]:
     """Yield ``(day_name, date)`` tuples for ``Monday..Sunday``.
 

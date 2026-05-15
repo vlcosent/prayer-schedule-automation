@@ -77,3 +77,42 @@ def test_send_returns_false_with_no_valid_recipients(
     result = email_service.send_daily_combined_email(today, week_num, monday, assignments)
     assert result is False
     assert factory.call_count == 0, "SMTP should not be opened when no recipients are valid"
+
+
+def test_email_html_escapes_elder_and_family_names() -> None:
+    """The email HTML builder must escape HTML-hostile characters in both
+    elder names and family names — never emit raw ``<``, ``>``, or ``&``
+    that came from configuration into element-content position.
+    """
+    monday = datetime(2026, 5, 11, 0, 0, tzinfo=CENTRAL_TZ)
+    today = datetime(2026, 5, 11, 9, 0, tzinfo=CENTRAL_TZ)  # Monday so the
+    # Monday-only "all elders" section also exercises the escape paths.
+    schedule = {
+        "Monday": ['Evil <Elder> & Co'],
+        "Tuesday": ["Sam"],
+        "Wednesday": ["Sam"],
+        "Thursday": ["Sam"],
+        "Friday": ["Sam"],
+        "Saturday": ["Sam"],
+        "Sunday": ["Sam"],
+    }
+    elder_assignments = {
+        'Evil <Elder> & Co': ['Family <script>, A & B'],
+        "Sam": ["Smith, John"],
+    }
+
+    html = email_service._build_combined_email_html(
+        today, "Monday", 19, monday, schedule, elder_assignments
+    )
+
+    # Elder name escaping: literal ``<Elder>`` must not appear in the HTML.
+    assert "&lt;Elder&gt;" in html
+    assert "<Elder>" not in html
+
+    # Family name escaping: literal ``<script>`` must not appear.
+    assert "&lt;script&gt;" in html
+    assert "<script>, A" not in html
+
+    # The raw ``&`` joining the elder name with ``Co`` must be escaped.
+    assert "Elder&gt; & Co" not in html
+    assert "Elder&gt; &amp; Co" in html
