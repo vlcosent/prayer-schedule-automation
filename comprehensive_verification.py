@@ -16,6 +16,10 @@ from datetime import datetime, timedelta
 # Import configuration from main script
 import sys
 import os
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from prayer_schedule_V10_DESKTOP_FIXED import (
     ELDERS, ELDER_FAMILIES, parse_directory,

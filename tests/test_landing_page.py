@@ -57,6 +57,6 @@ def test_render_handles_empty_archive() -> None:
 
 def test_render_escapes_unusual_filenames(tmp_path) -> None:
     # The regex won't match, so this should not be included.
-    (tmp_path / "Prayer_Schedule_2026-01-05_Week1<script>.txt").write_text("x")
+    (tmp_path / "Prayer_Schedule_2026-01-05_Week1_script_.txt").write_text("x")
     entries = blp.collect_archive_entries(str(tmp_path))
     assert entries == []

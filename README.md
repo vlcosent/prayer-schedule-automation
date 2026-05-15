@@ -24,7 +24,7 @@ Automated prayer schedule generator for Crossville Church of Christ. Rotates 7 e
 
 ## Daily Automation
 
-The system runs every day at **1:00 PM UTC** (8:00 AM CDT / 7:00 AM CST):
+The system runs every day at about **7:17 AM Central**:
 
 - **Monday**: Archives previous schedule, generates new weekly schedule, sends a combined daily email (today's assignment + week overview + full prayer lists for every elder)
 - **Tuesday-Sunday**: Refreshes output files, sends a combined daily email (today's assignment + week overview)

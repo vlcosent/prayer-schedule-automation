@@ -4,6 +4,10 @@ Analyze which elder families are in which pools to understand the coverage issue
 
 import sys
 import os
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from prayer_schedule_V10_DESKTOP_FIXED import (
@@ -75,7 +79,7 @@ for elder_idx, elder in enumerate(ELDERS):
         print(f"\n❌ {elder}:")
         print(f"   Family in Pool {family_pool}")
         print(f"   Gets Pool {family_pool} in week(s): {problem_weeks}")
-        print(f"   → Family will be REMOVED and NOT covered in these weeks!")
+        print(f"   -> Family is removed from that elder and reassigned in these weeks.")
     else:
         print(f"\n✅ {elder}: Never gets their own family's pool")
 
