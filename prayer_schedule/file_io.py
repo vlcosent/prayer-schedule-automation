@@ -8,7 +8,7 @@ import shutil
 import sys
 from datetime import datetime
 
-from .config import DESKTOP_DIR
+from .config import CENTRAL_TZ, DESKTOP_DIR
 
 
 _CURRENT_HTML_NAME: str = "Prayer_Schedule_Current_Week.html"
@@ -21,14 +21,23 @@ def _atomic_write(path: str, content: str) -> None:
     """Write ``content`` to ``path`` atomically via a ``<path>.tmp`` intermediate.
 
     Raises :class:`FileNotFoundError` / :class:`PermissionError` / :class:`OSError`
-    on failure rather than swallowing them.
+    on failure rather than swallowing them. If any step fails after the tmp
+    file is created, the tmp file is unlinked so it doesn't accumulate or
+    shadow the next attempt.
     """
     tmp_path = f"{path}.tmp"
-    # Write to the temp file first; on success, atomically rename over the
-    # target. ``os.replace`` is atomic on POSIX and overwrites on Windows.
-    with open(tmp_path, "w", encoding="utf-8") as handle:
-        handle.write(content)
-    os.replace(tmp_path, path)
+    try:
+        # Write to the temp file first; on success, atomically rename over the
+        # target. ``os.replace`` is atomic on POSIX and overwrites on Windows.
+        with open(tmp_path, "w", encoding="utf-8") as handle:
+            handle.write(content)
+        os.replace(tmp_path, path)
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except FileNotFoundError:
+            pass
+        raise
 
 
 def update_desktop_files(html_content: str, text_content: str) -> bool:
@@ -99,7 +108,9 @@ def archive_previous_schedule() -> bool:
         archive_dir = os.path.join(DESKTOP_DIR, _ARCHIVE_SUBDIR)
         os.makedirs(archive_dir, exist_ok=True)
 
-        timestamp = datetime.now().strftime("%Y-%m-%d")
+        # Use Central time so the archive filename always reflects the
+        # church-local calendar day, never the server's UTC date.
+        timestamp = datetime.now(CENTRAL_TZ).strftime("%Y-%m-%d")
 
         # Try to extract the week number from the existing file so the
         # archive filename is self-describing.
@@ -114,11 +125,20 @@ def archive_previous_schedule() -> bool:
             print(f"   [INFO] Could not extract week number from file: {exc}")
 
         if week_num:
-            archive_name = f"Prayer_Schedule_{timestamp}_Week{week_num}.txt"
+            base_name = f"Prayer_Schedule_{timestamp}_Week{week_num}"
         else:
-            archive_name = f"Prayer_Schedule_{timestamp}.txt"
+            base_name = f"Prayer_Schedule_{timestamp}"
 
-        archive_path = os.path.join(archive_dir, archive_name)
+        archive_path = os.path.join(archive_dir, f"{base_name}.txt")
+
+        # If a same-day archive already exists, append a numeric suffix so
+        # the prior copy is never silently overwritten.
+        suffix = 1
+        while os.path.exists(archive_path):
+            archive_path = os.path.join(archive_dir, f"{base_name}_{suffix}.txt")
+            suffix += 1
+
+        archive_name = os.path.basename(archive_path)
 
         # Copy-then-remove pattern gives a cleaner error story than shutil.move.
         shutil.copy2(current_txt, archive_path)
@@ -144,7 +164,7 @@ def log_activity(message: str) -> None:
         log_file = os.path.join(DESKTOP_DIR, _LOG_FILE_NAME)
         with open(log_file, "a", encoding="utf-8") as handle:
             handle.write(
-                f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}\n"
+                f"[{datetime.now(CENTRAL_TZ).strftime('%Y-%m-%d %H:%M:%S')}] {message}\n"
             )
     except OSError as exc:
         print(f"   [WARNING] Logging failed: {exc}", file=sys.stderr)
