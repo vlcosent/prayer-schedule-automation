@@ -24,7 +24,9 @@ Automated prayer schedule generator for Crossville Church of Christ. Rotates 7 e
 
 ## Daily Automation
 
-The system runs every day at about **7:17 AM Central**:
+The system checks repeatedly every morning beginning just after **7:00 AM Central**
+and sends at most one email per Central date. A committed send-state file prevents
+duplicate emails if GitHub Actions delivers delayed retry runs later in the day:
 
 - **Monday**: Archives previous schedule, generates new weekly schedule, sends a combined daily email (today's assignment + week overview + full prayer lists for every elder)
 - **Tuesday-Sunday**: Refreshes output files, sends a combined daily email (today's assignment + week overview)
@@ -44,6 +46,7 @@ All emails go to 9 configured recipients (elder group list + individual elders +
 | `Prayer_Schedule_Current_Week.html` | Web-viewable schedule with day highlighting |
 | `Prayer_Schedule_Current_Week.txt` | Plain text version for printing |
 | `prayer_schedule_log.txt` | Activity log with timestamps |
+| `.github/prayer-email-state.json` | Last successful email date used by the scheduled retry gate |
 | `archive/` | Historical weekly schedules |
 
 ## Local Usage

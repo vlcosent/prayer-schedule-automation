@@ -2,7 +2,7 @@
 
 ## What This Project Does
 
-Automated prayer schedule system for Crossville Church of Christ. Rotates 7 elders through 161 church families on a 7-week cycle. Runs daily via GitHub Actions at 1 PM UTC. Sends email reminders and publishes to GitHub Pages.
+Automated prayer schedule system for Crossville Church of Christ. Rotates 7 elders through 161 church families on a 7-week cycle. Runs daily via GitHub Actions morning retries with a once-per-date send gate. Sends email reminders and publishes to GitHub Pages.
 
 ## Quick Reference
 
@@ -15,7 +15,7 @@ Automated prayer schedule system for Crossville Church of Christ. Rotates 7 elde
 | Python version | 3.11 (stdlib only, pytest only in CI) |
 | Families | 161 (embedded in `DIRECTORY_CSV`, `prayer_schedule/directory.py`) |
 | Elders | 7 (single-source-of-truth in `ELDER_DATA`, `prayer_schedule/elders.py`) |
-| Cron schedule | 12:17 UTC (CDT) / 13:17 UTC (CST) — gated by DST-aware step |
+| Cron schedule | 7,22,37,52 minutes of 12-18 UTC; gated by Central date/time and `.github/prayer-email-state.json` |
 | GitHub Pages | Built fresh by deploy job: `build_landing_page.py` + current files (from artifact) + `archive/` |
 
 ## Repository File Map
@@ -122,7 +122,7 @@ Only TWO edits needed (down from 6 in the old monolith):
 4. Run `python -m pytest tests/` — the validation suite catches most drift automatically.
 
 ### Changing the Schedule Time
-Edit cron in `.github/workflows/weekly-schedule.yml` (the DST-aware gate picks the right entry automatically).
+Edit cron in `.github/workflows/weekly-schedule.yml`. Scheduled runs check the current Central time and `.github/prayer-email-state.json`; before 7:00 AM Central or after a successful send is already recorded for the date, the run exits before setup/test/email work.
 
 ### Testing Without Sending Emails
 Use manual workflow dispatch with `send_emails: false` (default for manual runs), or locally: `EMAIL_ENABLED=false python prayer_schedule_V10_DESKTOP_FIXED.py`.
@@ -138,8 +138,10 @@ python prayer_schedule_V10_DESKTOP_FIXED.py # Full run (needs EMAIL_ENABLED=fals
 
 **`.github/workflows/weekly-schedule.yml` — scheduled + dispatch:**
 - Runs pytest first; aborts if any test fails.
+- Checks repeatedly through the morning because GitHub scheduled events can be delayed or dropped.
 - Generates schedule files into the runner, uploads as artifact, sends combined daily email.
-- Commits only `archive/` rollovers (Mondays). Current-week files and the log are NEVER committed.
+- After a successful scheduled send, or a manual send with `send_emails: true`, commits `.github/prayer-email-state.json` so later retries skip duplicate emails.
+- Commits `archive/` rollovers (Mondays). Current-week files and the log are NEVER committed.
 - Deploy job downloads the artifact, runs `build_landing_page.py`, and publishes to GitHub Pages (index + current + archive).
 
 **`.github/workflows/ci.yml` — push/PR:**

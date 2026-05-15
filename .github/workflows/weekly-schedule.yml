@@ -2,10 +2,10 @@ name: Daily Prayer Schedule Email
 
 on:
   schedule:
-    # Two cron entries so the email arrives at ~7 AM Central year-round.
-    # The schedule gate below selects the DST-appropriate cron entry.
-    - cron: '17 12 * * *'   # 12:17 UTC = 7:17 AM CDT (Mar-Nov)
-    - cron: '17 13 * * *'   # 13:17 UTC = 7:17 AM CST (Nov-Mar)
+    # GitHub scheduled events are best-effort and can be delayed or dropped.
+    # Run several off-hour checks through the Central morning window; the
+    # schedule gate below sends at most one email per Central date.
+    - cron: '7,22,37,52 12-18 * * *'
   workflow_dispatch:
     inputs:
       send_emails:
@@ -38,32 +38,58 @@ jobs:
       issues: write    # Required to create issue on failure
 
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      with:
+        ref: main
+
+    - name: Synchronize default branch
+      if: github.event_name == 'schedule'
+      run: git pull --ff-only origin main
+
     - name: Check schedule gate
       if: github.event_name == 'schedule'
       id: schedule_gate
       env:
         EVENT_SCHEDULE: ${{ github.event.schedule }}
       run: |
-        CENTRAL_OFFSET=$(TZ='America/Chicago' date +%z)
-        EXPECTED_CRON='17 13 * * *'
-        if [ "$CENTRAL_OFFSET" = "-0500" ]; then
-          EXPECTED_CRON='17 12 * * *'
+        CENTRAL_DATE=$(TZ='America/Chicago' date +%F)
+        CENTRAL_TIME=$(TZ='America/Chicago' date +%H%M)
+        STATE_FILE=".github/prayer-email-state.json"
+        LAST_SEND_DATE=""
+
+        if [ -f "$STATE_FILE" ]; then
+          LAST_SEND_DATE=$(python3 - <<'PY'
+import json
+from pathlib import Path
+
+path = Path(".github/prayer-email-state.json")
+try:
+    print(json.loads(path.read_text(encoding="utf-8")).get("last_successful_send_date", ""))
+except Exception:
+    print("")
+PY
+          )
         fi
 
-        echo "Central UTC offset: $CENTRAL_OFFSET"
+        echo "Central date: $CENTRAL_DATE"
+        echo "Central time: $CENTRAL_TIME"
         echo "Triggered cron: $EVENT_SCHEDULE"
-        echo "Expected cron today: $EXPECTED_CRON"
+        echo "Last successful send date: ${LAST_SEND_DATE:-none}"
 
-        if [ "$EVENT_SCHEDULE" != "$EXPECTED_CRON" ]; then
-          echo "Skipping duplicate daily run from the non-matching DST cron entry"
+        if [[ "$CENTRAL_TIME" < "0700" ]]; then
+          echo "Skipping pre-7 AM Central retry"
           echo "skip=true" >> "$GITHUB_OUTPUT"
+          echo "skip_reason=before_7am_central" >> "$GITHUB_OUTPUT"
+        elif [ "$LAST_SEND_DATE" = "$CENTRAL_DATE" ]; then
+          echo "Skipping duplicate run; daily email is already marked sent for $CENTRAL_DATE"
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+          echo "skip_reason=already_sent_today" >> "$GITHUB_OUTPUT"
         else
+          echo "Proceeding; no successful email is recorded for $CENTRAL_DATE"
           echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "skip_reason=send_needed" >> "$GITHUB_OUTPUT"
         fi
-
-    - name: Checkout repository
-      if: steps.schedule_gate.outputs.skip != 'true'
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
     - name: Set up Python
       if: steps.schedule_gate.outputs.skip != 'true'
@@ -93,21 +119,51 @@ jobs:
       run: |
         python prayer_schedule_V10_DESKTOP_FIXED.py
 
-    - name: Commit archive rollover (Mondays only)
-      if: always() && steps.schedule_gate.outputs.skip != 'true'
+    - name: Commit send state and archive changes
+      if: steps.schedule_gate.outputs.skip != 'true'
+      env:
+        SEND_EMAILS_INPUT: ${{ inputs.send_emails || 'false' }}
       run: |
         # Current-week files and the log are NOT committed anymore — they
         # flow to Pages via the workflow artifact, regenerated every run.
-        # Only new archive/ entries (created on Mondays when the schedule
-        # rolls over) are committed, which cuts git history bloat ~95%.
+        # The send-state file prevents delayed schedule retries from sending
+        # duplicate daily emails. Archive entries are committed on Mondays
+        # when the schedule rolls over.
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "GitHub Actions Bot"
+
+        CENTRAL_DATE=$(TZ='America/Chicago' date +%F)
+        export CENTRAL_DATE
+        SHOULD_RECORD_SEND="false"
+        if [ "${{ github.event_name }}" = "schedule" ] || [ "$SEND_EMAILS_INPUT" = "true" ]; then
+          SHOULD_RECORD_SEND="true"
+        fi
+
+        if [ "$SHOULD_RECORD_SEND" = "true" ]; then
+          python - <<'PY'
+import json
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+
+state = {
+    "last_successful_send_date": os.environ["CENTRAL_DATE"],
+    "updated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+    "workflow_run": os.environ["GITHUB_RUN_ID"],
+}
+path = Path(".github/prayer-email-state.json")
+path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+PY
+          git add .github/prayer-email-state.json
+        fi
+
         git add archive/
         if git diff --staged --quiet; then
-          echo "No archive changes to commit"
+          echo "No send-state or archive changes to commit"
         else
-          git commit -m "Archive prayer schedule for $(date +%Y-%m-%d)"
-          git push || echo "No changes to push (push failed)"
+          git commit -m "Record prayer schedule run for $CENTRAL_DATE"
+          git pull --rebase origin main
+          git push
         fi
 
     - name: Upload schedule artifacts
