@@ -10,6 +10,7 @@ contains:
 
 from __future__ import annotations
 
+import re
 import smtplib
 import time
 import traceback
@@ -22,6 +23,11 @@ from . import config
 from .elders import get_week_schedule
 from .file_io import log_activity
 from .validation import verify_email_date
+
+
+# Minimal address shape check; intentionally permissive (no RFC 5322 horror).
+# Goal: reject obvious typos like "not-an-email" or "@bad.com" before SMTP.
+_EMAIL_RX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def _email_styles() -> dict[str, str]:
@@ -293,13 +299,18 @@ def send_daily_combined_email(
         return False
 
     try:
-        # Parse recipient emails.
-        recipients = [
+        # Parse recipient emails and filter out malformed entries so a typo
+        # in RECIPIENT_EMAILS doesn't cause the SMTP server to silently bounce.
+        raw_recipients = [
             email.strip() for email in config.RECIPIENT_EMAILS.split(',') if email.strip()
         ]
+        recipients = [e for e in raw_recipients if _EMAIL_RX.match(e)]
+        for bad in raw_recipients:
+            if bad not in recipients:
+                print(f"   [WARNING] Skipping malformed recipient address: {bad!r}")
 
         if not recipients:
-            print("   [WARNING] No recipient emails configured")
+            print("   [ERROR] No valid recipient addresses to send to")
             return False
 
         # Verify the date is correct before composing the email.
