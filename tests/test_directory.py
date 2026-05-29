@@ -7,7 +7,7 @@ from prayer_schedule.directory import DIRECTORY_CSV, parse_directory
 
 
 def test_family_count(directory_families: list[str]) -> None:
-    assert len(directory_families) == 161
+    assert len(directory_families) == 160
 
 
 def test_families_sorted(directory_families: list[str]) -> None:

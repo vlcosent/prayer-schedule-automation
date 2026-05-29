@@ -1,11 +1,11 @@
 # Prayer Schedule Automation
 
-Automated prayer schedule generator for Crossville Church of Christ. Rotates 7 elders through 161 church families on a perfect 7-week cycle. Runs daily via GitHub Actions, sends email reminders, and publishes to [GitHub Pages](https://vlcosent.github.io/prayer-schedule-automation/).
+Automated prayer schedule generator for Crossville Church of Christ. Rotates 7 elders through 160 church families on a 7-week cycle. Runs daily via GitHub Actions, sends email reminders, and publishes to [GitHub Pages](https://vlcosent.github.io/prayer-schedule-automation/).
 
 ## How It Works
 
-- **7 elders** rotate through **161 families** across **7 pools**
-- Each elder gets a different pool each week (22-24 families per elder)
+- **7 elders** rotate through **160 families** across **7 pools**
+- Each elder gets a different pool each week (21-24 families per elder)
 - After 7 weeks, every elder has prayed for every family exactly once
 - No elder ever prays for their own family
 - Each day of the week has one elder assigned
@@ -90,11 +90,11 @@ To change an elder, update `ELDER_DATA` in `prayer_schedule/elders.py`, regenera
 ## Verification
 
 The system verifies 5 invariants on every run:
-1. **Family count**: 22-24 families per elder
+1. **Family count**: 21-24 families per elder
 2. **Self-prayer**: No elder has their own family
 3. **Rotation**: 100% new families every consecutive week
 4. **Cycle**: Assignments repeat exactly after 7 weeks
-5. **Coverage**: All 161 families included
+5. **Coverage**: All 160 families included
 
 Run the full test suite:
 ```bash
