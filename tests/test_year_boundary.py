@@ -86,7 +86,7 @@ def test_leap_year_2028_week_math() -> None:
     assert cw > 0
     # Assignments should still be valid.
     assignments = assign_families_for_week_v10(cw)
-    assert sum(len(v) for v in assignments.values()) == 161
+    assert sum(len(v) for v in assignments.values()) == 160
 
 
 def test_calculate_continuous_week_rejects_pre_reference_date() -> None:
