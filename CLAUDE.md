@@ -10,12 +10,12 @@ Automated prayer schedule system for Crossville Church of Christ. Rotates 7 elde
 |------|-------|
 | Entry point | `prayer_schedule_V10_DESKTOP_FIXED.py` (42-line shim → `prayer_schedule.cli.main`) |
 | Application | `prayer_schedule/` package (config, elders, directory, algorithm, validation, output, email_service, file_io, utils, cli) |
-| Tests | `tests/` (pytest — 100+ tests, covers algorithm invariants, year boundaries, validators, landing page) |
+| Tests | `tests/` (pytest — 120+ tests, covers algorithm invariants, year boundaries, validators, archive rollover, landing page) |
 | Workflow | `.github/workflows/weekly-schedule.yml` (cron + deploy) and `.github/workflows/ci.yml` (PR tests) |
 | Python version | 3.11 (stdlib only, pytest only in CI) |
 | Families | 161 (embedded in `DIRECTORY_CSV`, `prayer_schedule/directory.py`) |
 | Elders | 7 (single-source-of-truth in `ELDER_DATA`, `prayer_schedule/elders.py`) |
-| Cron schedule | 7,22,37,52 minutes of 12-18 UTC; gated by Central date/time and `.github/prayer-email-state.json` |
+| Cron schedule | 7,22,37,52 minutes of 9-18 UTC (GitHub delivers these hours late and drops most); optional on-time trigger via `repository_dispatch` type `daily-email`; both gated by Central date/time and `.github/prayer-email-state.json` |
 | GitHub Pages | Built fresh by deploy job: `build_landing_page.py` + current files (from artifact) + `archive/` |
 
 ## Repository File Map
@@ -42,6 +42,7 @@ tests/                                  # pytest suite
     test_year_boundary.py               # ISO-week reset regression tests
     test_validation.py                  # Startup validators
     test_landing_page.py                # build_landing_page.py logic
+    test_archive_rollover.py            # Daily archive rollover (regenerate last week, idempotent)
 
 build_landing_page.py                   # Generates index.html from archive/
 .github/workflows/
@@ -65,7 +66,7 @@ Prayer_Schedule_Current_Week.html       # Rebuilt every run, flows via workflow 
 Prayer_Schedule_Current_Week.txt        # Rebuilt every run, flows via workflow artifact
 prayer_schedule_log.txt                 # Activity log; kept locally only
 index.html                              # Landing page; rebuilt each deploy
-archive/                                # Historical weekly schedules (committed — Monday rollover only)
+archive/                                # Historical weekly schedules (committed; last week's file is regenerated and added on any run where it's missing)
 ```
 
 ## How the Algorithm Works
@@ -100,9 +101,9 @@ ISO week numbers reset at year boundaries (52→1), breaking `cycle_position`. F
 | `validation.py` | Structured validators returning `(ok, issues)` tuples: `validate_elder_data`, `validate_reassignment_map`, `validate_email_config`, `verify_today_elder_assignment`, `verify_schedule`, `verify_v10_algorithm`, `verify_email_date` |
 | `output.py` | `generate_html_schedule`, `generate_text_schedule`, `generate_schedule_content` orchestrator |
 | `email_service.py` | `_email_styles`, `_build_combined_email_html`, `send_daily_combined_email` (with `List-Unsubscribe` header per RFC 8058) |
-| `file_io.py` | Atomic writes via `<path>.tmp` + `os.replace`, pre-write permission checks, `archive_previous_schedule`, `log_activity` |
+| `file_io.py` | Atomic writes via `<path>.tmp` + `os.replace`, pre-write permission checks, `archive_file_name` / `archive_week_schedule` (idempotent), `log_activity` |
 | `utils.py` | `get_today`, `iter_week`, `day_name_for` |
-| `cli.py` | `main()` orchestrator: validators → algorithm → generate → write → email |
+| `cli.py` | `main()` orchestrator: validators → algorithm → archive last week (`_archive_previous_week`) → generate → write → email |
 
 All public symbols are re-exported from the top-level `prayer_schedule` package and from the backward-compat shim `prayer_schedule_V10_DESKTOP_FIXED.py`.
 
@@ -124,6 +125,8 @@ Only TWO edits needed (down from 6 in the old monolith):
 ### Changing the Schedule Time
 Edit cron in `.github/workflows/weekly-schedule.yml`. Scheduled runs check the current Central time and `.github/prayer-email-state.json`; before 7:00 AM Central or after a successful send is already recorded for the date, the run exits before setup/test/email work.
 
+GitHub's cron delivery is best-effort: in practice only 2 to 6 of the day's events arrive, each hours late, so the email usually lands mid-morning. For an on-time send, point an external scheduler at the `repository_dispatch` event (`event_type: daily-email`) at 7:05 AM Central; see EMAIL_SETUP_GUIDE.md, "Sending the Email On Time". Dispatch runs pass through the same gate, so they can never double-send.
+
 ### Testing Without Sending Emails
 Use manual workflow dispatch with `send_emails: false` (default for manual runs), or locally: `EMAIL_ENABLED=false python prayer_schedule_V10_DESKTOP_FIXED.py`.
 
@@ -139,9 +142,11 @@ python prayer_schedule_V10_DESKTOP_FIXED.py # Full run (needs EMAIL_ENABLED=fals
 **`.github/workflows/weekly-schedule.yml` — scheduled + dispatch:**
 - Runs pytest first; aborts if any test fails.
 - Checks repeatedly through the morning because GitHub scheduled events can be delayed or dropped.
+- Accepts a `repository_dispatch` event (`daily-email`) from an external scheduler and treats it exactly like a scheduled run (same gate, same email, same state commit).
+- Writes a one-line job summary per run (sent, skipped before 7 AM, or already sent today) so the Actions run list is readable.
 - Generates schedule files into the runner, uploads as artifact, sends combined daily email.
-- After a successful scheduled send, or a manual send with `send_emails: true`, commits `.github/prayer-email-state.json` so later retries skip duplicate emails.
-- Commits `archive/` rollovers (Mondays). Current-week files and the log are NEVER committed.
+- After a successful scheduled or dispatched send, or a manual send with `send_emails: true`, commits `.github/prayer-email-state.json` so later retries skip duplicate emails.
+- Every run regenerates last week's schedule from the rotation and writes it to `archive/` if it is missing, then commits it. This happens on any day (not just Monday) because a fresh checkout has no previous-week file to move and GitHub can drop the Monday run entirely. Current-week files and the log are NEVER committed.
 - Deploy job downloads the artifact, runs `build_landing_page.py`, and publishes to GitHub Pages (index + current + archive).
 
 **`.github/workflows/ci.yml` — push/PR:**
@@ -150,7 +155,7 @@ python prayer_schedule_V10_DESKTOP_FIXED.py # Full run (needs EMAIL_ENABLED=fals
 **Manual runs (workflow_dispatch):**
 - Emails disabled by default (opt-in via `send_emails` input).
 
-**On failure (scheduled runs only):**
+**On failure (scheduled and dispatched runs only):**
 - Creates or comments on a GitHub issue labeled "bug".
 
 ## Environment Variables
@@ -167,4 +172,5 @@ python prayer_schedule_V10_DESKTOP_FIXED.py # Full run (needs EMAIL_ENABLED=fals
 
 - **Static reassignment map**: `FIXED_REASSIGNMENT_MAP` must be manually recalculated when families or elders change. Use `calc_reassignments.py` and the test suite catches drift.
 - **Locked to current elder count**: Pool count and rotation length are driven by `ELDER_COUNT = POOL_COUNT = 7` in `config.py`; the reassignment map must be regenerated whenever this changes.
+- **GitHub cron is unreliable**: scheduled events arrive hours late and most are dropped, so the email lands mid-morning unless an external scheduler fires the `daily-email` dispatch (EMAIL_SETUP_GUIDE.md). The gate makes the two triggers safe to combine.
 - **Directory PII in source**: Family names live in `DIRECTORY_CSV` (`prayer_schedule/directory.py`) and elder family identities in `ELDER_DATA` (`prayer_schedule/elders.py`). Treat the repo as sensitive and keep it private.
