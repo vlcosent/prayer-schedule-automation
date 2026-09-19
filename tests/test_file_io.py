@@ -1,8 +1,8 @@
-"""File-I/O tests: atomic-write cleanup, archive timezone, archive idempotency."""
+"""File-I/O tests: atomic-write cleanup, archive naming/idempotency, log rotation."""
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pytest
 
@@ -32,82 +32,70 @@ def test_atomic_write_unlinks_tmp_on_replace_failure(
     assert not os.path.exists(target)
 
 
-def test_archive_filename_uses_central_date(
+def test_archive_file_name_uses_following_monday() -> None:
+    """Archive names carry the *following* Monday (the rollover day) plus the
+    archived week's number, matching every file already in ``archive/``."""
+    monday = datetime(2026, 9, 7, tzinfo=CENTRAL_TZ)  # ISO week 37
+    assert file_io.archive_file_name(37, monday) == "Prayer_Schedule_2026-09-14_Week37.txt"
+
+
+def test_archive_file_name_crosses_year_boundary() -> None:
+    monday = datetime(2026, 12, 28, tzinfo=CENTRAL_TZ)  # ISO week 53 of 2026
+    assert file_io.archive_file_name(53, monday) == "Prayer_Schedule_2027-01-04_Week53.txt"
+
+
+def test_archive_file_name_rejects_non_monday() -> None:
+    with pytest.raises(ValueError, match="must be a Monday"):
+        file_io.archive_file_name(37, datetime(2026, 9, 8, tzinfo=CENTRAL_TZ))
+
+
+def test_archive_week_schedule_writes_new_file(
     tmp_path: object,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The archive filename should reflect the Central-time date, not server UTC.
-
-    Pick a UTC instant where Central is the *prior* calendar day (UTC just
-    after midnight, Central still in the previous day). The archive name must
-    use the Central date.
-    """
     monkeypatch.setattr(file_io, "DESKTOP_DIR", str(tmp_path))
-    current_txt = os.path.join(str(tmp_path), "Prayer_Schedule_Current_Week.txt")
-    with open(current_txt, "w", encoding="utf-8") as handle:
-        handle.write("WEEK 5\nDaily prayer schedule body\n")
+    monday = datetime(2026, 9, 7, tzinfo=CENTRAL_TZ)
 
-    # 2026-05-15 03:00 UTC = 2026-05-14 22:00 Central (CDT, UTC-5).
-    fixed_utc = datetime(2026, 5, 15, 3, 0, tzinfo=timezone.utc)
-
-    class FrozenDateTime(datetime):
-        @classmethod
-        def now(cls, tz: object = None) -> datetime:  # type: ignore[override]
-            if tz is None:
-                return fixed_utc.replace(tzinfo=None)
-            return fixed_utc.astimezone(tz)
-
-    monkeypatch.setattr(file_io, "datetime", FrozenDateTime)
-
-    assert file_io.archive_previous_schedule() is True
+    assert file_io.archive_week_schedule("Week 37 body\n", 37, monday) is True
 
     archive_dir = os.path.join(str(tmp_path), "archive")
-    entries = os.listdir(archive_dir)
-    assert len(entries) == 1, entries
-    # Central calendar day is the 14th, not the 15th (UTC).
-    assert "2026-05-14" in entries[0], entries[0]
-    assert "Week5" in entries[0], entries[0]
+    assert os.listdir(archive_dir) == ["Prayer_Schedule_2026-09-14_Week37.txt"]
+    with open(os.path.join(archive_dir, "Prayer_Schedule_2026-09-14_Week37.txt"), encoding="utf-8") as handle:
+        assert handle.read() == "Week 37 body\n"
 
 
-def test_archive_does_not_overwrite_existing(
+def test_archive_week_schedule_is_idempotent(
     tmp_path: object,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Running archive twice in the same Central day must not silently
-    overwrite the prior archive; the second run should land at a suffixed
-    name so both copies survive.
-    """
+    """A second call for the same week must leave the existing file untouched,
+    so Tuesday..Sunday runs (and re-runs) never rewrite history."""
     monkeypatch.setattr(file_io, "DESKTOP_DIR", str(tmp_path))
+    monday = datetime(2026, 9, 7, tzinfo=CENTRAL_TZ)
+
+    assert file_io.archive_week_schedule("original\n", 37, monday) is True
+    assert file_io.archive_week_schedule("different\n", 37, monday) is False
 
     archive_dir = os.path.join(str(tmp_path), "archive")
-    os.makedirs(archive_dir, exist_ok=True)
+    assert os.listdir(archive_dir) == ["Prayer_Schedule_2026-09-14_Week37.txt"]
+    with open(os.path.join(archive_dir, "Prayer_Schedule_2026-09-14_Week37.txt"), encoding="utf-8") as handle:
+        assert handle.read() == "original\n"
 
-    # First run: write current schedule and archive it.
-    current_txt = os.path.join(str(tmp_path), "Prayer_Schedule_Current_Week.txt")
-    with open(current_txt, "w", encoding="utf-8") as handle:
-        handle.write("WEEK 5\nFirst content\n")
-    assert file_io.archive_previous_schedule() is True
 
-    first_listing = sorted(os.listdir(archive_dir))
-    assert len(first_listing) == 1
+def test_archive_week_schedule_reports_io_errors(
+    tmp_path: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed archive write must not raise: the daily email still has to go out."""
+    monkeypatch.setattr(file_io, "DESKTOP_DIR", str(tmp_path))
 
-    # Second run on the same Central day: write a different current schedule
-    # and archive again. Both archives should coexist.
-    with open(current_txt, "w", encoding="utf-8") as handle:
-        handle.write("WEEK 5\nSecond content\n")
-    assert file_io.archive_previous_schedule() is True
+    def boom(_path: str, _content: str) -> None:
+        raise OSError("simulated disk full")
 
-    final_listing = sorted(os.listdir(archive_dir))
-    assert len(final_listing) == 2, final_listing
+    monkeypatch.setattr(file_io, "_atomic_write", boom)
 
-    # Verify the second archive contains the second body — i.e., the first
-    # archive was not overwritten.
-    bodies = sorted(
-        open(os.path.join(archive_dir, name), encoding="utf-8").read()
-        for name in final_listing
-    )
-    assert "First content" in bodies[0]
-    assert "Second content" in bodies[1]
+    monday = datetime(2026, 9, 7, tzinfo=CENTRAL_TZ)
+    assert file_io.archive_week_schedule("x", 37, monday) is False
 
 
 def test_log_activity_rotates_when_oversized(

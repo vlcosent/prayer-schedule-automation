@@ -2,10 +2,18 @@ name: Daily Prayer Schedule Email
 
 on:
   schedule:
-    # GitHub scheduled events are best-effort and can be delayed or dropped.
-    # Run several off-hour checks through the Central morning window; the
-    # schedule gate below sends at most one email per Central date.
-    - cron: '7,22,37,52 12-18 * * *'
+    # GitHub scheduled events are best-effort: in practice they arrive hours
+    # late and most are dropped outright. Fire every 15 minutes across a wide
+    # window so *some* event lands soon after 7 AM Central; the schedule gate
+    # below skips anything earlier and sends at most one email per Central
+    # date. 09:07 UTC is 4:07 AM CDT / 3:07 AM CST; 18:52 UTC is 1:52 PM CDT.
+    - cron: '7,22,37,52 9-18 * * *'
+  # On-time alternative: an external scheduler POSTs a repository_dispatch
+  # event at 7 AM Central (see EMAIL_SETUP_GUIDE.md, "Sending the Email On
+  # Time"). It is handled exactly like a scheduled run, gate included, so
+  # extra triggers can never cause a duplicate email.
+  repository_dispatch:
+    types: [daily-email]
   workflow_dispatch:
     inputs:
       send_emails:
@@ -30,6 +38,11 @@ concurrency:
 jobs:
   generate-schedule:
     runs-on: ubuntu-latest
+    env:
+      # Scheduled runs and external repository_dispatch triggers both send the
+      # real daily email (subject to the schedule gate below). Manual runs
+      # only send when the send_emails input is 'true'.
+      AUTOMATED_SEND: ${{ github.event_name == 'schedule' || github.event_name == 'repository_dispatch' }}
     outputs:
       should_deploy: ${{ steps.schedule_gate.outputs.skip != 'true' }}
 
@@ -44,13 +57,14 @@ jobs:
         ref: main
 
     - name: Synchronize default branch
-      if: github.event_name == 'schedule'
+      if: env.AUTOMATED_SEND == 'true'
       run: git pull --ff-only origin main
 
     - name: Check schedule gate
-      if: github.event_name == 'schedule'
+      if: env.AUTOMATED_SEND == 'true'
       id: schedule_gate
       env:
+        EVENT_NAME: ${{ github.event_name }}
         EVENT_SCHEDULE: ${{ github.event.schedule }}
       run: |
         CENTRAL_DATE=$(TZ='America/Chicago' date +%F)
@@ -64,21 +78,26 @@ jobs:
 
         echo "Central date: $CENTRAL_DATE"
         echo "Central time: $CENTRAL_TIME"
-        echo "Triggered cron: $EVENT_SCHEDULE"
+        echo "Trigger: $EVENT_NAME ${EVENT_SCHEDULE:+(cron $EVENT_SCHEDULE)}"
         echo "Last successful send date: ${LAST_SEND_DATE:-none}"
 
+        # The one-line job summary makes the Actions run list readable:
+        # every run "succeeds", so this is where you see which one sent.
         if [[ "$CENTRAL_TIME" < "0700" ]]; then
           echo "Skipping pre-7 AM Central retry"
           echo "skip=true" >> "$GITHUB_OUTPUT"
           echo "skip_reason=before_7am_central" >> "$GITHUB_OUTPUT"
+          echo "Skipped: $CENTRAL_DATE $CENTRAL_TIME Central is before 7:00 AM." >> "$GITHUB_STEP_SUMMARY"
         elif [ "$LAST_SEND_DATE" = "$CENTRAL_DATE" ]; then
           echo "Skipping duplicate run; daily email is already marked sent for $CENTRAL_DATE"
           echo "skip=true" >> "$GITHUB_OUTPUT"
           echo "skip_reason=already_sent_today" >> "$GITHUB_OUTPUT"
+          echo "Skipped: the daily email for $CENTRAL_DATE was already sent." >> "$GITHUB_STEP_SUMMARY"
         else
           echo "Proceeding; no successful email is recorded for $CENTRAL_DATE"
           echo "skip=false" >> "$GITHUB_OUTPUT"
           echo "skip_reason=send_needed" >> "$GITHUB_OUTPUT"
+          echo "Sending the daily email for $CENTRAL_DATE (run started $CENTRAL_TIME Central)." >> "$GITHUB_STEP_SUMMARY"
         fi
 
     - name: Set up Python
@@ -103,9 +122,9 @@ jobs:
     - name: Run prayer schedule generator
       if: steps.schedule_gate.outputs.skip != 'true'
       env:
-        # For scheduled runs, always send emails.
-        # For manual runs, respect the send_emails input (defaults to false).
-        EMAIL_ENABLED: ${{ github.event_name == 'schedule' && 'true' || inputs.send_emails || 'false' }}
+        # Scheduled and repository_dispatch runs always send emails.
+        # Manual runs respect the send_emails input (defaults to false).
+        EMAIL_ENABLED: ${{ env.AUTOMATED_SEND == 'true' && 'true' || inputs.send_emails || 'false' }}
         SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
         SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
         RECIPIENT_EMAILS: ${{ secrets.RECIPIENT_EMAILS }}
@@ -121,15 +140,16 @@ jobs:
         # Current-week files and the log are NOT committed anymore — they
         # flow to Pages via the workflow artifact, regenerated every run.
         # The send-state file prevents delayed schedule retries from sending
-        # duplicate daily emails. Archive entries are committed on Mondays
-        # when the schedule rolls over.
+        # duplicate daily emails. The generator writes last week's schedule
+        # to archive/ whenever it is missing (any day, not just Monday), and
+        # that new file is committed here.
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "GitHub Actions Bot"
 
         CENTRAL_DATE=$(TZ='America/Chicago' date +%F)
         export CENTRAL_DATE
         SHOULD_RECORD_SEND="false"
-        if [ "${{ github.event_name }}" = "schedule" ] || [ "$SEND_EMAILS_INPUT" = "true" ]; then
+        if [ "$AUTOMATED_SEND" = "true" ] || [ "$SEND_EMAILS_INPUT" = "true" ]; then
           SHOULD_RECORD_SEND="true"
         fi
 
@@ -179,7 +199,7 @@ jobs:
         if-no-files-found: warn
 
     - name: Create or update issue on failure
-      if: failure() && github.event_name == 'schedule' && steps.schedule_gate.outputs.skip != 'true'
+      if: failure() && env.AUTOMATED_SEND == 'true' && steps.schedule_gate.outputs.skip != 'true'
       run: |
         existing=$(gh issue list --label "bug" --state open --search "Prayer schedule generation failed" --json number -q '.[0].number' 2>/dev/null || true)
         if [ -z "$existing" ]; then

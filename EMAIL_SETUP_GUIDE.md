@@ -167,6 +167,63 @@ View the full schedule online: https://vlcosent.github.io/prayer-schedule-automa
    - `[EMAIL] Sending to: elders@crossvillechurchofchrist.org, carolsparks.cs@gmail.com, frankbo72@gmail.com, ...`
    - `[✓] Email sent successfully to 9 recipient(s)`
 
+## Sending the Email On Time (Optional)
+
+GitHub's `schedule` trigger is best-effort. The workflow asks for a run every
+15 minutes from early morning, but GitHub typically delivers only a few of
+those runs per day, each hours late, so the daily email usually arrives
+between 10 AM and 1 PM Central instead of at 7 AM. The workflow's gate
+guarantees at most one email per day, but it cannot make GitHub start on time.
+
+To get a reliable 7 AM send, have any external scheduler that can make an
+HTTPS request (for example cron-job.org, an always-on home server, or Windows
+Task Scheduler on a machine that is never off) fire a `repository_dispatch`
+event at **7:05 AM Central** every day. The workflow treats it exactly like a
+scheduled run: same gate, same email, same send-state commit. A second
+trigger on the same day is a harmless no-op.
+
+### 1. Create a fine-grained personal access token
+
+1. GitHub → **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained tokens** → **Generate new token**
+2. Name: `prayer-schedule-dispatch`; expiration: 1 year (set a reminder to rotate it)
+3. Repository access: **Only select repositories** → `prayer-schedule-automation`
+4. Permissions → Repository permissions → **Contents: Read and write** (the permission `repository_dispatch` requires; nothing else is needed)
+5. Generate the token and copy it. It is shown only once.
+
+### 2. Configure the scheduler
+
+Send this request once a day at 7:05 AM Central (12:05 UTC during daylight
+time, 13:05 UTC in winter; choose `America/Chicago` as the schedule time zone
+if your scheduler supports one):
+
+```
+POST https://api.github.com/repos/vlcosent/prayer-schedule-automation/dispatches
+Accept: application/vnd.github+json
+Authorization: Bearer <your token>
+X-GitHub-Api-Version: 2022-11-28
+
+{"event_type": "daily-email"}
+```
+
+Equivalent `curl` command for testing (a successful call prints `204`):
+
+```bash
+curl -sS -o /dev/null -w '%{http_code}\n' -X POST \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: Bearer <your token>" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
+  https://api.github.com/repos/vlcosent/prayer-schedule-automation/dispatches \
+  -d '{"event_type":"daily-email"}'
+```
+
+### 3. Verify
+
+Within a minute a **Daily Prayer Schedule Email** run appears in the Actions
+tab, triggered by `repository_dispatch`. Its job summary says either
+"Sending the daily email for <date>" or why it skipped (before 7 AM Central,
+or already sent today). Leave the cron schedule in place as a fallback; the
+gate makes the two triggers safe to run together.
+
 ## Troubleshooting
 
 ### Error: "Email authentication failed"
@@ -264,5 +321,5 @@ If you encounter issues:
 
 ---
 
-**Last Updated:** February 2026
+**Last Updated:** September 2026
 **System:** Prayer Schedule Automation v10
