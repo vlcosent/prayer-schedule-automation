@@ -2,7 +2,7 @@
 
 ## What This Project Does
 
-Automated prayer schedule system for Crossville Church of Christ. Rotates 7 elders through 161 church families on a 7-week cycle. Runs daily via GitHub Actions morning retries with a once-per-date send gate. Sends email reminders and publishes to GitHub Pages.
+Automated prayer schedule system for Crossville Church of Christ. Rotates 7 elders through 160 church families on a 7-week cycle. Runs daily via GitHub Actions morning retries with a once-per-date send gate. Sends email reminders and publishes to GitHub Pages.
 
 ## Quick Reference
 
@@ -13,7 +13,7 @@ Automated prayer schedule system for Crossville Church of Christ. Rotates 7 elde
 | Tests | `tests/` (pytest — 100+ tests, covers algorithm invariants, year boundaries, validators, landing page) |
 | Workflow | `.github/workflows/weekly-schedule.yml` (cron + deploy) and `.github/workflows/ci.yml` (PR tests) |
 | Python version | 3.11 (stdlib only, pytest only in CI) |
-| Families | 161 (embedded in `DIRECTORY_CSV`, `prayer_schedule/directory.py`) |
+| Families | 160 (embedded in `DIRECTORY_CSV`, `prayer_schedule/directory.py`) |
 | Elders | 7 (single-source-of-truth in `ELDER_DATA`, `prayer_schedule/elders.py`) |
 | Cron schedule | 7,22,37,52 minutes of 12-18 UTC; gated by Central date/time and `.github/prayer-email-state.json` |
 | GitHub Pages | Built fresh by deploy job: `build_landing_page.py` + current files (from artifact) + `archive/` |
@@ -71,23 +71,23 @@ archive/                                # Historical weekly schedules (committed
 ## How the Algorithm Works
 
 ### Pool Distribution
-1. Parse 161 families from `DIRECTORY_CSV` (sorted alphabetically)
-2. Distribute round-robin into 7 pools of exactly 23 families each (161 = 7 × 23)
+1. Parse 160 families from `DIRECTORY_CSV` (sorted alphabetically)
+2. Distribute round-robin into 7 pools — six of 23 and one of 22 (160 = 6 × 23 + 22)
 3. Each week, elder `i` gets pool `(i + cycle_position) % POOL_COUNT`
 4. `cycle_position = (continuous_week - 1) % POOL_COUNT` advances by 1 each week
 
 ### Elder-Own-Family Handling
-When an elder's pool contains their own family, it's filtered out and reassigned to another elder via `FIXED_REASSIGNMENT_MAP` (module-level constant in `prayer_schedule/algorithm.py`). The map covers cycle positions [1, 2, 3, 4, 6]. Each target is verified "adjacency-safe" (no week-to-week repeats). Validated at startup by `validate_reassignment_map()` in `prayer_schedule/validation.py`.
+When an elder's pool contains their own family, it's filtered out and reassigned to another elder via `FIXED_REASSIGNMENT_MAP` (module-level constant in `prayer_schedule/algorithm.py`). The map covers cycle positions [0, 1, 2, 3, 6]. Each target is verified "adjacency-safe" (no week-to-week repeats). Validated at startup by `validate_reassignment_map()` in `prayer_schedule/validation.py`. Because 160 is not divisible by 7, one pool holds only 22 families; the elder who owns a family in that pool drops to 21 the week they draw it (cycle 0), and the freed family pushes its target to the offsetting 24.
 
 ### Year-Boundary Fix
 ISO week numbers reset at year boundaries (52→1), breaking `cycle_position`. Fixed with `calculate_continuous_week()` using `REFERENCE_MONDAY = 2025-12-29`. Within 2026, continuous week == ISO week.
 
 ### Key Invariants (verified every run)
-- Each elder gets 22-24 families per week
+- Each elder gets 21-24 families per week
 - No elder prays for their own family
 - 100% new families every consecutive week
 - 7-week cycle repeats exactly
-- All 161 families covered
+- All 160 families covered
 
 ## Package Structure (prayer_schedule/)
 
@@ -111,7 +111,7 @@ All public symbols are re-exported from the top-level `prayer_schedule` package 
 ### Adding/Removing a Family
 1. Edit `DIRECTORY_CSV` in `prayer_schedule/directory.py`
 2. Recalculate `FIXED_REASSIGNMENT_MAP` in `prayer_schedule/algorithm.py` using `calc_reassignments.py`
-3. Run `python -m pytest tests/` — several tests hard-assert the count (161); update them if the total changes
+3. Run `python -m pytest tests/` — several tests hard-assert the count (160); update them if the total changes
 4. Run `python comprehensive_verification.py` as a second sanity check
 
 ### Adding/Removing an Elder

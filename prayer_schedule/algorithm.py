@@ -1,10 +1,10 @@
 """Pool distribution, week-number arithmetic, and weekly family assignment.
 
 This is the heart of the V10 rotation algorithm. ``create_v10_master_pools``
-distributes the 161 families round-robin into 7 pools.
+distributes the 160 families round-robin into 7 pools.
 ``assign_families_for_week_v10`` selects the weekly pool per elder, filters
 out each elder's own family, and redistributes filtered families according
-to :data:`FIXED_REASSIGNMENT_MAP` to guarantee 22-24 families per elder and
+to :data:`FIXED_REASSIGNMENT_MAP` to guarantee 21-24 families per elder and
 no week-to-week repeats.
 """
 
@@ -59,16 +59,16 @@ def calculate_continuous_week(monday_date: datetime) -> int:
 def create_v10_master_pools() -> list[list[str]]:
     """Distribute all families round-robin into ``POOL_COUNT`` sorted pools.
 
-    Returns a list of ``POOL_COUNT`` lists. With 161 families and 7 pools,
-    each pool ends up with exactly 23 families (161 = 7 * 23).
+    Returns a list of ``POOL_COUNT`` lists. With 160 families and 7 pools the
+    round-robin yields six pools of 23 and one pool of 22 (160 = 6*23 + 22).
     """
     families = parse_directory()
 
     # Create the pools.
     pools: list[list[str]] = [[] for _ in range(POOL_COUNT)]
 
-    # Distribute all families round-robin style.  With 161 families and 7
-    # pools this naturally achieves 23 families in every pool.
+    # Distribute all families round-robin style.  With 160 families and 7
+    # pools this yields six pools of 23 families and one of 22.
     for i, family in enumerate(families):
         pool_idx = i % POOL_COUNT
         pools[pool_idx].append(family)
@@ -92,26 +92,29 @@ def get_master_pools() -> list[list[str]]:
     return _MASTER_POOLS
 
 
-# Fixed reassignment mapping based on conflict analysis (161 families, 7 pools
-# of 23 families each). For each cycle position 0..6, any elder whose own
+# Fixed reassignment mapping based on conflict analysis (160 families, 7 pools:
+# six of 23 and one of 22). For each cycle position 0..6, any elder whose own
 # family lands in their assigned pool has it filtered out; this map names the
 # elder who absorbs that filtered family.
-# - Cycle 1: Larry McDuffee's family filtered (in Pool 0)
-# - Cycle 2: Brian McLaughlin's family filtered (in Pool 2)
-# - Cycle 3: Frank Bohannon's, Jonathan Loveday's, and L.A. Fox's families filtered
-# - Cycle 4: Jerry Wood's family filtered (in Pool 6)
+# - Cycle 0: Larry McDuffee's family filtered (in Pool 6, the 22-family pool)
+# - Cycle 1: Brian McLaughlin's family filtered (in Pool 1)
+# - Cycle 2: Jonathan Loveday's (Pool 5) and L.A. Fox's (Pool 0) families filtered
+# - Cycle 3: Frank Bohannon's (Pool 4) and Jerry Wood's (Pool 5) families filtered
 # - Cycle 6: Kyle Fairman's family filtered (in Pool 3)
 #
-# Reassignments chosen to maintain 22-24 family balance and avoid repeats:
+# Reassignments chosen to maintain 21-24 family balance and avoid repeats:
 # Each target verified SAFE (family not in target's adjacent-week pools).
+# The lone 21 is unavoidable: Larry owns a family in the 22-family pool, so the
+# week he draws that pool (cycle 0) his count drops to 21 with nothing to add
+# back; the freed family goes to Frank, who rises to the offsetting 24.
 FIXED_REASSIGNMENT_MAP: dict[int, dict[str, str]] = {
-    1: {"Larry McDuffee": "Frank Bohannon"},     # Larry(22) filtered -> Frank(23->24) SAFE
-    2: {"Brian McLaughlin": "Jerry Wood"},       # Brian(22) filtered -> Jerry(23->24) SAFE
+    0: {"Larry McDuffee": "Frank Bohannon"},     # Larry(21) filtered -> Frank(23->24) SAFE
+    1: {"Brian McLaughlin": "Jerry Wood"},       # Brian(22) filtered -> Jerry(23->24) SAFE
+    2: {"Jonathan Loveday": "Brian McLaughlin",  # Jonathan(22) filtered -> Brian(23->24) SAFE
+        "L.A. Fox": "Frank Bohannon"},           # L.A.(22) filtered -> Frank(23->24) SAFE
     3: {"Frank Bohannon": "Jonathan Loveday",    # Frank(22) filtered -> Jonathan(22->23) SAFE
-        "Jonathan Loveday": "Brian McLaughlin",  # Jonathan(22) filtered -> Brian(23->24) SAFE
-        "L.A. Fox": "Frank Bohannon"},           # L.A.(22) filtered -> Frank(22->23) SAFE
-    4: {"Jerry Wood": "Brian McLaughlin"},       # Jerry(22) filtered -> Brian(23->24) SAFE
-    6: {"Kyle Fairman": "Brian McLaughlin"},     # Kyle(22) filtered -> Brian(23->24) SAFE
+        "Jerry Wood": "Brian McLaughlin"},       # Jerry(22) filtered -> Brian(23->24) SAFE
+    6: {"Kyle Fairman": "Brian McLaughlin"},     # Kyle(22) filtered -> Brian(22->23) SAFE
 }
 
 
