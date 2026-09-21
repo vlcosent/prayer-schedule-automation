@@ -14,8 +14,8 @@ from .algorithm import (
 from .config import DESKTOP_DIR, POOL_COUNT
 from .elders import get_week_schedule
 from .email_service import send_daily_combined_email
-from .file_io import archive_previous_schedule, log_activity, update_desktop_files
-from .output import generate_schedule_content
+from .file_io import archive_week_schedule, log_activity, update_desktop_files
+from .output import generate_schedule_content, generate_text_schedule
 from .utils import get_today
 from .validation import (
     validate_elder_data,
@@ -28,10 +28,33 @@ from .validation import (
 )
 
 
+def _archive_previous_week(this_monday: datetime) -> bool:
+    """Regenerate the week that ended yesterday and archive it if missing.
+
+    The schedule for any week is a pure function of its Monday, so the
+    previous week's text can be rebuilt on demand instead of relying on a
+    leftover ``Prayer_Schedule_Current_Week.txt`` (which never exists in
+    CI). Returns ``True`` when a new archive file was written.
+    """
+    previous_monday = this_monday - timedelta(days=7)
+    try:
+        continuous_week = calculate_continuous_week(previous_monday)
+    except ValueError as exc:
+        print(f"   [INFO] Nothing to archive: {exc}")
+        return False
+
+    week_number = calculate_week_number(previous_monday)
+    assignments = assign_families_for_week_v10(continuous_week)
+    text_content = generate_text_schedule(week_number, previous_monday, assignments)
+    return archive_week_schedule(text_content, week_number, previous_monday)
+
+
 def main() -> bool:
     """Main execution with combined daily email.
 
     Behaviour:
+      * Every day: make sure last week's schedule is in ``archive/``
+        (idempotent, so a dropped Monday run cannot lose a week).
       * Monday: Regenerate weekly schedule files + send combined email.
       * Tuesday-Sunday: Refresh HTML/text files + send combined email.
       * Every day: exactly 1 email (today's assignment + week overview).
@@ -152,14 +175,17 @@ def main() -> bool:
             print(f"  {elder}: {len(families)} families")
 
         if is_monday:
-            # === MONDAY: Full regeneration ===
             print("\n--- MONDAY: Full schedule regeneration ---")
-
-            # Archive previous week's schedule before generating new one.
-            print("\nArchiving previous schedule...")
-            archive_previous_schedule()
         else:
             print(f"\n--- {today_name.upper()}: Daily update ---")
+
+        # Archive last week's schedule if it isn't already. This runs every
+        # day rather than only on Monday: CI starts from a fresh checkout
+        # (no previous-week file to move) and GitHub's scheduler can drop
+        # the Monday run entirely, so the archive is regenerated from the
+        # algorithm and written only when missing.
+        print("\nArchiving previous week's schedule...")
+        _archive_previous_week(monday)
 
         # Generate / refresh content every day (for day highlighting on website).
         html_content, text_content = generate_schedule_content(

@@ -24,11 +24,16 @@ Automated prayer schedule generator for Crossville Church of Christ. Rotates 7 e
 
 ## Daily Automation
 
-The system checks repeatedly every morning beginning just after **7:00 AM Central**
-and sends at most one email per Central date. A committed send-state file prevents
-duplicate emails if GitHub Actions delivers delayed retry runs later in the day:
+The workflow is scheduled every 15 minutes from early morning until early afternoon
+Central and sends at most one email per Central date, never before **7:00 AM Central**.
+A committed send-state file prevents duplicate emails when GitHub delivers delayed
+retry runs later in the day. GitHub's scheduler is best-effort and in practice delivers
+only a few of those runs, hours late, so the email usually arrives mid-morning; for an
+on-time send, see [Sending the Email On Time](EMAIL_SETUP_GUIDE.md#sending-the-email-on-time-optional)
+in the email guide:
 
-- **Monday**: Archives previous schedule, generates new weekly schedule, sends a combined daily email (today's assignment + week overview + full prayer lists for every elder)
+- **Every day**: Makes sure last week's schedule is saved in `archive/` (regenerated from the rotation, so nothing is lost if a Monday run is skipped)
+- **Monday**: Generates the new weekly schedule, sends a combined daily email (today's assignment + week overview + full prayer lists for every elder)
 - **Tuesday-Sunday**: Refreshes output files, sends a combined daily email (today's assignment + week overview)
 
 All emails go to 9 configured recipients (elder group list + individual elders + church staff).
@@ -47,7 +52,7 @@ All emails go to 9 configured recipients (elder group list + individual elders +
 | `Prayer_Schedule_Current_Week.txt` | Plain text version for printing |
 | `prayer_schedule_log.txt` | Activity log with timestamps |
 | `.github/prayer-email-state.json` | Last successful email date used by the scheduled retry gate |
-| `archive/` | Historical weekly schedules |
+| `archive/` | Historical weekly schedules, one file per completed week, named for the Monday after that week |
 
 ## Local Usage
 

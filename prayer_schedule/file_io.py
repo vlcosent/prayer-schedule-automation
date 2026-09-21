@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import os
-import re
-import shutil
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from .config import CENTRAL_TZ, DESKTOP_DIR
 
@@ -89,68 +87,53 @@ def update_desktop_files(html_content: str, text_content: str) -> bool:
     return success
 
 
-def archive_previous_schedule() -> bool:
-    """Archive the previous week's text file before a Monday regeneration.
+def archive_file_name(week_number: int, week_monday: datetime) -> str:
+    """Return the archive filename for the week that starts on ``week_monday``.
 
-    Moves ``Prayer_Schedule_Current_Week.txt`` to
-    ``archive/Prayer_Schedule_<date>[_WeekNN].txt``. Returns ``True`` on a
-    successful archive, ``False`` when there is nothing to archive or when
-    an error occurs (a diagnostic is printed either way so the CI log tells
-    the story).
+    The date in the name is the *following* Monday, i.e. the day the weekly
+    rollover happens, which keeps the convention every archive file has used
+    since 2025::
+
+        Prayer_Schedule_<following Monday>_Week<N>.txt
     """
-    current_txt = os.path.join(DESKTOP_DIR, _CURRENT_TEXT_NAME)
+    if week_monday.weekday() != 0:
+        raise ValueError(
+            f"week_monday must be a Monday, got {week_monday:%Y-%m-%d} ({week_monday:%A})"
+        )
+    following_monday = week_monday + timedelta(days=7)
+    return f"Prayer_Schedule_{following_monday:%Y-%m-%d}_Week{week_number}.txt"
 
-    if not os.path.exists(current_txt):
-        print("   [INFO] No previous schedule to archive (first run or file doesn't exist)")
+
+def archive_week_schedule(
+    text_content: str,
+    week_number: int,
+    week_monday: datetime,
+) -> bool:
+    """Write one week's text schedule into ``archive/`` unless it is already there.
+
+    A week's schedule is deterministic, so this is idempotent: an existing
+    file is left untouched and ``False`` is returned. ``True`` means a new
+    archive file was written. I/O errors are reported but never raised,
+    because a failed archive must not block the daily email.
+    """
+    archive_dir = os.path.join(DESKTOP_DIR, _ARCHIVE_SUBDIR)
+    archive_name = archive_file_name(week_number, week_monday)
+    archive_path = os.path.join(archive_dir, archive_name)
+
+    if os.path.exists(archive_path):
+        print(f"   [INFO] Already archived: archive/{archive_name}")
         return False
 
     try:
-        archive_dir = os.path.join(DESKTOP_DIR, _ARCHIVE_SUBDIR)
         os.makedirs(archive_dir, exist_ok=True)
-
-        # Use Central time so the archive filename always reflects the
-        # church-local calendar day, never the server's UTC date.
-        timestamp = datetime.now(CENTRAL_TZ).strftime("%Y-%m-%d")
-
-        # Try to extract the week number from the existing file so the
-        # archive filename is self-describing.
-        week_num: str | None = None
-        try:
-            with open(current_txt, "r", encoding="utf-8") as handle:
-                content = handle.read(300)  # First 300 chars is enough.
-            match = re.search(r"WEEK (\d+)", content, re.IGNORECASE)
-            if match:
-                week_num = match.group(1)
-        except OSError as exc:
-            print(f"   [INFO] Could not extract week number from file: {exc}")
-
-        if week_num:
-            base_name = f"Prayer_Schedule_{timestamp}_Week{week_num}"
-        else:
-            base_name = f"Prayer_Schedule_{timestamp}"
-
-        archive_path = os.path.join(archive_dir, f"{base_name}.txt")
-
-        # If a same-day archive already exists, append a numeric suffix so
-        # the prior copy is never silently overwritten.
-        suffix = 1
-        while os.path.exists(archive_path):
-            archive_path = os.path.join(archive_dir, f"{base_name}_{suffix}.txt")
-            suffix += 1
-
-        archive_name = os.path.basename(archive_path)
-
-        # Copy-then-remove pattern gives a cleaner error story than shutil.move.
-        shutil.copy2(current_txt, archive_path)
-        os.remove(current_txt)
-
-        print(f"   [ARCHIVED] Previous schedule moved to: archive/{archive_name}")
-        return True
-
-    except (OSError, shutil.Error) as exc:
-        print(f"   [WARNING] Could not archive previous schedule: {exc}")
+        _atomic_write(archive_path, text_content)
+    except OSError as exc:
+        print(f"   [WARNING] Could not archive previous week: {exc}")
         print("   [INFO] Continuing with schedule generation...")
         return False
+
+    print(f"   [ARCHIVED] Week {week_number} saved to: archive/{archive_name}")
+    return True
 
 
 _LOG_MAX_BYTES: int = 1_048_576  # 1 MB; rotates to <log>.1 above this size.

@@ -150,7 +150,7 @@ Smith,Roger & Dianna
 Smith,Scott & Juanita
 Sparks,Carol
 Sparks,Jerry & Judy
-Stevens,Kyle & Laura Li
+Stevens,"Kyle & Laura Li; Jordi"
 Stover,Lewis & Judy
 Swafford,"Russell & Christiana; Jeremiah, Lilly, Tempest"
 Thomas,Elon & Betty
