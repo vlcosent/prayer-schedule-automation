@@ -21,18 +21,18 @@ from prayer_schedule.config import (
 WEEK_RANGE = range(32, 32 + ROTATION_WEEKS * 2)
 
 
-def test_pool_distribution_sums_to_161() -> None:
+def test_pool_distribution_sums_to_160() -> None:
     pools = create_v10_master_pools()
     assert len(pools) == POOL_COUNT
     total = sum(len(p) for p in pools)
-    assert total == 161
+    assert total == 160
 
 
-def test_pool_sizes_evenly_split() -> None:
+def test_pool_sizes_near_even_split() -> None:
     pools = create_v10_master_pools()
-    # 161 = 23 * 7 → every pool has exactly 23 families.
+    # 160 = 6*23 + 22 → six pools of 23 and one of 22; sizes differ by at most 1.
     sizes = sorted(len(p) for p in pools)
-    assert sizes == [23] * POOL_COUNT
+    assert sizes == [22] + [23] * (POOL_COUNT - 1)
 
 
 def test_no_family_in_two_pools() -> None:
@@ -49,12 +49,12 @@ def test_get_master_pools_is_cached() -> None:
 
 
 @pytest.mark.parametrize("week", list(WEEK_RANGE))
-def test_each_week_covers_161_families(week: int, directory_families: list[str]) -> None:
+def test_each_week_covers_160_families(week: int, directory_families: list[str]) -> None:
     assignments = assign_families_for_week_v10(week)
     flat: list[str] = []
     for fams in assignments.values():
         flat.extend(fams)
-    assert len(flat) == 161
+    assert len(flat) == 160
     assert set(flat) == set(directory_families)
 
 
@@ -113,7 +113,7 @@ def test_assign_families_raises_when_reassignment_map_incomplete(
     landed in their own pool, the algorithm must fail loudly rather than
     silently routing the family to a guessed elder.
 
-    Cycle position 1 (week_number=2) is known to have Larry McDuffee's family
+    Cycle position 1 (week_number=2) is known to have Brian McLaughlin's family
     filtered into his pool; clearing the map for that position guarantees a
     missing entry.
     """

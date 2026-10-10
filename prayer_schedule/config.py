@@ -51,13 +51,20 @@ DAYS_OF_WEEK: tuple[str, ...] = (
 ELDER_COUNT: int = 7
 POOL_COUNT: int = ELDER_COUNT
 ROTATION_WEEKS: int = 7
-FAMILIES_PER_ELDER_MIN: int = 22
+FAMILIES_PER_ELDER_MIN: int = 21
 FAMILIES_PER_ELDER_MAX: int = 24
-DIRECTORY_FAMILY_COUNT: int = 161
+DIRECTORY_FAMILY_COUNT: int = 160
 
 # Fail at import if the tuning constants drift out of sync with the directory
-# size. The round-robin algorithm gives every elder either floor(N/P) or
-# ceil(N/P) families; both must fall within [MIN, MAX].
+# size. The round-robin gives every elder a base pool of floor(N/P) or
+# ceil(N/P) families. Two effects then widen the achievable range to
+# [floor-1, ceil+1]:
+#   * filtering an elder's own family out of the *smallest* pool drops that
+#     elder one below floor (e.g. 160 families -> pools of 23/22; the elder
+#     who owns a family in the 22-pool lands on 21 the week they draw it);
+#   * a target absorbing a reassigned family rises one above ceil.
+# MIN/MAX must therefore bracket [floor-1, ceil+1]; these asserts catch the
+# common drift where MIN exceeds floor or MAX falls below ceil.
 assert FAMILIES_PER_ELDER_MIN <= DIRECTORY_FAMILY_COUNT // ELDER_COUNT, (
     "FAMILIES_PER_ELDER_MIN is larger than the directory permits"
 )

@@ -269,7 +269,7 @@ def generate_html_schedule(
 
         <div class="content">
             <div class="note">
-                <strong>Note:</strong> Each elder has 22-24 families to ensure complete rotation coverage.
+                <strong>Note:</strong> Each elder has 21-24 families to ensure complete rotation coverage.
                 Each day of the week has one elder assigned for prayer.
                 Daily emails are sent each morning to remind everyone of today's prayer assignment.
             </div>
