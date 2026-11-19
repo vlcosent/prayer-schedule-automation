@@ -1,6 +1,6 @@
 """Church directory data and CSV parsing.
 
-The complete 161-family directory is embedded as a Python string constant so
+The complete 160-family directory is embedded as a Python string constant so
 the project remains a zero-dependency, single-repository deliverable.
 ``parse_directory`` converts the CSV into a sorted list of ``"Last, First"``
 strings and performs defensive validation (missing columns, blank names,
@@ -13,7 +13,7 @@ import csv
 from io import StringIO
 
 
-# Church Directory CSV - All 161 families
+# Church Directory CSV - All 160 families
 DIRECTORY_CSV: str = """Last Name,First Names
 Allred,"Patric & Courtney; Brady Hoyt, Allie Grace"
 Austin,Shawn
@@ -54,7 +54,6 @@ Dodson,Bendell
 Edwards,Emily
 Evans,Janie
 Fairman,"Kyle & Leigh Ann; Wyatt, Audrey"
-Fawehinmi,Ethan
 Folk,Roberta
 Fowler,Rick & Sue
 Fox,Jean
